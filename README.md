@@ -14,9 +14,9 @@ TODO add Arxiv citation
 
 ## Ressources
 
-* [Installation](doc/install): install and setup lightconvpoint
-* [Run experients](examples/README): re-run experiments from the paper
-* [Getting started](doc/getting_started): start to design your own network
+* [Installation](doc/install.md): install and setup lightconvpoint
+* [Run experients](examples/README.md): re-run experiments from the paper
+* [Getting started](doc/getting_started.md): start to design your own network
 
 ### Example
 
