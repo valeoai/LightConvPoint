@@ -1,0 +1,30 @@
+# Dataset
+datasetdir: /datasets_local
+dataset: ModelNet/modelnet40_ply_hdf5_2048
+npoints: 2048
+
+# Network
+model: KPConvCls
+backend_conv: LCP
+backend_search: SearchQuantized
+savedir: /root/workspace/LightConvPoint_results/modelnet40/KPConvCls_LCP_SearchQuantized
+
+# Training
+batchsize: 64
+lr_start: 0.001
+epoch_nbr: 300
+milestones: 
+    - 100
+    - 150
+    - 200
+    - 225
+    - 250
+    - 275
+
+# Testing
+num_iter_per_shape: 16
+
+# misc
+device: "cuda" 
+threads: 8
+disable_tqdm: false

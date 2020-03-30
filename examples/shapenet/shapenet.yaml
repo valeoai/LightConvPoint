@@ -1,0 +1,33 @@
+# Dataset
+datasetdir: /datasets_local
+dataset: shapenet_partseg/raw_data_hdf5
+npoints: 2048
+
+# Network
+model: KPConvSeg
+backend_conv: LCP
+backend_search: SearchQuantized
+savedir: /root/workspace/LightConvPoint_results/shapenet/KPConvSeg_LCP_SearchQuantized
+
+# Training
+batchsize: 16
+lr_start: 0.001
+epoch_nbr: 400
+milestones:
+    - 100
+    - 150
+    - 200
+    - 250
+    - 300
+    - 350
+gamma: 0.5
+use_category: true
+weighting: true
+
+# Testing
+num_iter_per_shape: 16
+
+# Misc
+device: cuda
+disable_tqdm: false
+threads: 4

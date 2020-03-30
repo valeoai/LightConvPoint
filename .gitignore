@@ -1,0 +1,8 @@
+__pycache__
+build
+lib
+.vscode
+*.ipynb
+*_valeo.py
+*.so
+*.egg-info
