@@ -21,3 +21,19 @@ from .identity import Identity
 
 # Dataset
 from .dataset import with_indices_computation, with_indices_computation_rotation
+
+__all__ = [
+    "ConvPoint",
+    "LCP",
+    "PCCN",
+    "Conv",
+    "SearchConvPoint",
+    "SearchFPS",
+    "SearchQuantized",
+    "SearchRandom",
+    "MaxPool",
+    "UpSampleNearest",
+    "Identity",
+    "with_indices_computation",
+    "with_indices_computation_rotation",
+]

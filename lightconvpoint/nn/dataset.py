@@ -18,20 +18,19 @@ def rotate_point_cloud(batch_data, rotation_matrix=None, inverse=False):
 
         cosval = np.cos(rotation_angle_x)
         sinval = np.sin(rotation_angle_x)
-        rotation_matrix_x = np.array([
-            [1, 0, 0],
-            [0, cosval, sinval],
-            [0, -sinval, cosval], ])
+        rotation_matrix_x = np.array(
+            [[1, 0, 0], [0, cosval, sinval], [0, -sinval, cosval]]
+        )
         cosval = np.cos(rotation_angle_y)
         sinval = np.sin(rotation_angle_y)
-        rotation_matrix_y = np.array([[cosval, 0, sinval],
-                                      [0, 1, 0],
-                                      [-sinval, 0, cosval], ])
+        rotation_matrix_y = np.array(
+            [[cosval, 0, sinval], [0, 1, 0], [-sinval, 0, cosval]]
+        )
         cosval = np.cos(rotation_angle_z)
         sinval = np.sin(rotation_angle_z)
-        rotation_matrix_z = np.array([[cosval, sinval, 0],
-                                      [-sinval, cosval, 0],
-                                      [0, 0, 1], ])
+        rotation_matrix_z = np.array(
+            [[cosval, sinval, 0], [-sinval, cosval, 0], [0, 0, 1]]
+        )
         rotation_matrix = rotation_matrix_x @ rotation_matrix_y @ rotation_matrix_z
     if inverse:
         rotation_matrix = rotation_matrix.transpose()
@@ -44,11 +43,10 @@ def with_indices_computation_rotation(func):
         # Do something before
         return_dict = func(*args, **kwargs)
 
-        if hasattr(args[0], 'net') and args[0].net is not None:
+        if hasattr(args[0], "net") and args[0].net is not None:
 
             # random rotation
-            pts_r, rotation_matrix = rotate_point_cloud(
-                return_dict['pts'].numpy())
+            pts_r, rotation_matrix = rotate_point_cloud(return_dict["pts"].numpy())
             pts_r = torch.from_numpy(pts_r).float()
             _, indices, indices_pts = args[0].net(None, pts_r.unsqueeze(0))
 
@@ -59,14 +57,16 @@ def with_indices_computation_rotation(func):
 
                 # inverse rotation
                 pts_tmp, _ = rotate_point_cloud(
-                    indices_pts[i].numpy(), rotation_matrix, inverse=True)
+                    indices_pts[i].numpy(), rotation_matrix, inverse=True
+                )
                 indices_pts[i] = torch.from_numpy(pts_tmp).float()
 
-            return_dict['net_indices'] = indices
-            return_dict['net_support'] = indices_pts
+            return_dict["net_indices"] = indices
+            return_dict["net_support"] = indices_pts
 
         # Do something after
         return return_dict
+
     return wrapper_decorator
 
 
@@ -76,20 +76,20 @@ def with_indices_computation(func):
         # Do something before
         return_dict = func(*args, **kwargs)
 
-        if hasattr(args[0], 'net') and args[0].net is not None:
+        if hasattr(args[0], "net") and args[0].net is not None:
 
             # random rotation
-            _, indices, indices_pts = args[0].net(
-                None, return_dict['pts'].unsqueeze(0))
+            _, indices, indices_pts = args[0].net(None, return_dict["pts"].unsqueeze(0))
 
             for i in range(len(indices)):
                 indices[i] = indices[i].squeeze(0)
             for i in range(len(indices_pts)):
                 indices_pts[i] = indices_pts[i].squeeze(0)
 
-            return_dict['net_indices'] = indices
-            return_dict['net_support'] = indices_pts
+            return_dict["net_indices"] = indices
+            return_dict["net_support"] = indices_pts
 
         # Do something after
         return return_dict
+
     return wrapper_decorator

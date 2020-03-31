@@ -9,14 +9,14 @@ def get_conv(conv_name):
     elif conv_name == "PCCN":
         return lcp_nn.PCCN
     else:
-        raise Exception(f'Unknown convolution {conv_name}')
+        raise Exception(f"Unknown convolution {conv_name}")
 
 
 def get_search(search_name):
     if search_name == "SearchQuantized":
         return lcp_nn.SearchQuantized
     else:
-        raise Exception(f'Unknown convolution {search_name}')
+        raise Exception(f"Unknown convolution {search_name}")
 
 
 def get_network(model_name, in_channels, out_channels, ConvNet_name, Search_name):
@@ -29,6 +29,8 @@ def get_network(model_name, in_channels, out_channels, ConvNet_name, Search_name
     elif model_name == "KPConvCls":
         from lightconvpoint.networks.kpconv import KPConvCls as Net
     else:
-        raise Exception(f'Unknown model {model_name}')
+        raise Exception(f"Unknown model {model_name}")
 
-    return Net(in_channels, out_channels, get_conv(ConvNet_name), get_search(Search_name))
+    return Net(
+        in_channels, out_channels, get_conv(ConvNet_name), get_search(Search_name)
+    )

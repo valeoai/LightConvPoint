@@ -1,8 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import numpy as np
-import math
 
 
 class PCCN(nn.Module):
@@ -23,7 +20,7 @@ class PCCN(nn.Module):
         dim: int
             dimension of the geometrical space (default is 3)
         """
-        super(PCCN, self).__init__()
+        super().__init__()
 
         # parameters
         self.in_channels = in_channels
@@ -34,13 +31,13 @@ class PCCN(nn.Module):
 
         # weight matrix
         self.weight = nn.Parameter(
-            torch.Tensor(in_channels, out_channels), requires_grad=True)
+            torch.Tensor(in_channels, out_channels), requires_grad=True
+        )
         torch.nn.init.xavier_uniform_(self.weight.data)
 
         # bias
         if self.use_bias:
-            self.bias = nn.Parameter(torch.Tensor(
-                out_channels, 1), requires_grad=True)
+            self.bias = nn.Parameter(torch.Tensor(out_channels, 1), requires_grad=True)
             torch.nn.init.zeros_(self.bias.data)
 
         # MLP
@@ -54,7 +51,7 @@ class PCCN(nn.Module):
         self.projector = nn.Sequential(*modules)
 
     def normalize_points(self, pts, radius=None):
-        maxi = torch.sqrt((pts.detach()**2).sum(1).max(2)[0])
+        maxi = torch.sqrt((pts.detach() ** 2).sum(1).max(2)[0])
         maxi = maxi + (maxi == 0)
         return pts / maxi.view(maxi.size(0), 1, maxi.size(1), 1)
 

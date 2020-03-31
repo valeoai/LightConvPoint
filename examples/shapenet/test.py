@@ -1,41 +1,19 @@
-import time
 import numpy as np
-import random
 import os
 from tqdm import tqdm
 import argparse
-from datetime import datetime
 from sklearn.metrics import confusion_matrix
-import h5py
 import yaml
 
 # torch imports
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import torch.utils.data
 
-import math
-
 import lightconvpoint.utils.data_utils as data_utils
+import lightconvpoint.utils.metrics as metrics
 from shapenet_dataset import ShapeNet_dataset as Dataset
 from lightconvpoint.utils import get_network
-import lightconvpoint.utils.metrics as metrics
-import lightconvpoint.nn
 from lightconvpoint.knn import knn
-
-
-def count_parameters(model):
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-
-def pc_normalize(pc):
-    l = pc.shape[0]
-    centroid = np.mean(pc, axis=0)
-    pc = pc - centroid
-    m = np.max(np.sqrt(np.sum(pc**2, axis=1)))
-    pc = pc / m
-    return pc
 
 
 def nearest_correspondance(pts_src, pts_dest, data_src, K=1):
@@ -54,35 +32,35 @@ def main(_config):
 
     print(_config)
 
-    savedir_root = _config['savedir']
-    device = torch.device(_config['device'])
+    savedir_root = _config["savedir"]
+    device = torch.device(_config["device"])
 
     print("get the data path...", end="", flush=True)
-    rootdir = os.path.join(_config['datasetdir'], _config['dataset'])
+    rootdir = os.path.join(_config["datasetdir"], _config["dataset"])
     print("done")
 
     filelist_test = os.path.join(rootdir, "test_files.txt")
-    filename_category = os.path.join(rootdir, "categories.txt")
 
     N_CLASSES = 50
-    N_CAT = 16
 
-    shapenet_labels = [['Airplane', 4],
-                       ['Bag', 2],
-                       ['Cap', 2],
-                       ['Car', 4],
-                       ['Chair', 4],
-                       ['Earphone', 3],
-                       ['Guitar', 3],
-                       ['Knife', 2],
-                       ['Lamp', 4],
-                       ['Laptop', 2],
-                       ['Motorbike', 6],
-                       ['Mug', 2],
-                       ['Pistol', 3],
-                       ['Rocket', 3],
-                       ['Skateboard', 3],
-                       ['Table', 3], ]
+    shapenet_labels = [
+        ["Airplane", 4],
+        ["Bag", 2],
+        ["Cap", 2],
+        ["Car", 4],
+        ["Chair", 4],
+        ["Earphone", 3],
+        ["Guitar", 3],
+        ["Knife", 2],
+        ["Lamp", 4],
+        ["Laptop", 2],
+        ["Motorbike", 6],
+        ["Mug", 2],
+        ["Pistol", 3],
+        ["Rocket", 3],
+        ["Skateboard", 3],
+        ["Table", 3],
+    ]
     category_range = []
     count = 0
     for element in shapenet_labels:
@@ -92,35 +70,54 @@ def main(_config):
         category_range.append([part_start, part_end])
 
     # Prepare inputs
-    print('Preparing datasets...', end='', flush=True)
-    data_test, labels_shape_test, data_num_test, labels_pts_test, _ = data_utils.load_seg(
-        filelist_test)
+    print("Preparing datasets...", end="", flush=True)
+    (
+        data_test,
+        labels_shape_test,
+        data_num_test,
+        labels_pts_test,
+        _,
+    ) = data_utils.load_seg(filelist_test)
     print("Done", data_test.shape)
 
-    print("Creating network...", end='', flush=True)
+    print("Creating network...", end="", flush=True)
 
-    def network_function(): return get_network(_config['model'], in_channels=1, out_channels=N_CLASSES,
-                                               ConvNet_name=_config['backend_conv'],
-                                               Search_name=_config['backend_search'])
+    def network_function():
+        return get_network(
+            _config["model"],
+            in_channels=1,
+            out_channels=N_CLASSES,
+            ConvNet_name=_config["backend_conv"],
+            Search_name=_config["backend_search"],
+        )
+
     net = network_function()
-    net.load_state_dict(torch.load(os.path.join(
-        savedir_root, "checkpoint.pth"), map_location=device)["state_dict"])
+    net.load_state_dict(
+        torch.load(os.path.join(savedir_root, "checkpoint.pth"), map_location=device)[
+            "state_dict"
+        ]
+    )
     net.to(device)
     print("Done")
 
-    print("Creating dataloader...", end='', flush=True)
-    ds_test = Dataset(data_test, data_num_test, labels_pts_test, labels_shape_test,
-                      npoints=_config['npoints'], training=False, network_function=network_function,
-                      num_iter_per_shape=_config["num_iter_per_shape"])
+    print("Creating dataloader...", end="", flush=True)
+    ds_test = Dataset(
+        data_test,
+        data_num_test,
+        labels_pts_test,
+        labels_shape_test,
+        npoints=_config["npoints"],
+        training=False,
+        network_function=network_function,
+        num_iter_per_shape=_config["num_iter_per_shape"],
+    )
     test_loader = torch.utils.data.DataLoader(
-        ds_test, batch_size=_config['batchsize'], shuffle=False, num_workers=_config['threads'])
+        ds_test,
+        batch_size=_config["batchsize"],
+        shuffle=False,
+        num_workers=_config["threads"],
+    )
     print("Done")
-
-    # Score lists
-    IoU_cat = [np.zeros((shapenet_labels[i][1], shapenet_labels[i][1]))
-               for i in range(len(shapenet_labels))]
-    IoU_cat_part = [0 for _ in shapenet_labels]
-    count_shapes = [0 for _ in shapenet_labels]
 
     # per shape results
     results = torch.zeros(data_test.shape[0], data_test.shape[1], N_CLASSES)
@@ -132,28 +129,26 @@ def main(_config):
         t = tqdm(test_loader, ncols=100, desc="Inference")
         for data in t:
 
-            pts = data['pts'].to(device)
-            features = data['features'].to(device)
-            seg = data['seg'].to(device)
-            choices = data['choice']
-            labels = data['label']
-            indices = data['index']
-            net_ids = data['net_indices']
-            net_pts = data['net_support']
+            pts = data["pts"].to(device)
+            features = data["features"].to(device)
+            seg = data["seg"].to(device)
+            choices = data["choice"]
+            labels = data["label"]
+            indices = data["index"]
+            net_ids = data["net_indices"]
+            net_pts = data["net_support"]
             for i in range(len(net_ids)):
                 net_ids[i] = net_ids[i].to(device)
             for i in range(len(net_pts)):
                 net_pts[i] = net_pts[i].to(device)
 
-            outputs = net(
-                features, pts, support_points=net_pts, indices=net_ids)
+            outputs = net(features, pts, support_points=net_pts, indices=net_ids)
 
-            outputs = outputs.to(torch.device('cpu'))
+            outputs = outputs.to(torch.device("cpu"))
             for b_id in range(outputs.shape[0]):
 
                 object_label = labels[i]
                 part_start, part_end = category_range[object_label]
-                part_nbr = part_end - part_start
                 outputs[i, :part_start] = -1e7
                 outputs[i, part_end:] = -1e7
 
@@ -173,7 +168,8 @@ def main(_config):
             target_np = seg.cpu().numpy().copy()
 
             cm_ = confusion_matrix(
-                target_np.ravel(), output_np.ravel(), labels=list(range(N_CLASSES)))
+                target_np.ravel(), output_np.ravel(), labels=list(range(N_CLASSES))
+            )
             cm += cm_
 
     Confs = []
@@ -188,30 +184,28 @@ def main(_config):
         part_start, part_end = category_range[shape_label]
         label_gt -= part_start
 
-        part_nbr = shapenet_labels[shape_label][1]
-
         # get the results
         res_shape = results[s_id, :npts, part_start:part_end]
 
         # extend results to unseen points
-        mask = (results_count[s_id, :npts].cpu().numpy() == 1)
+        mask = results_count[s_id, :npts].cpu().numpy() == 1
         if np.logical_not(mask).sum() > 0:
             res_shape_mask = res_shape[mask]
-            pts_src = torch.from_numpy(
-                data_test[s_id, :npts][mask]).transpose(0, 1)
-            # pts_dest = torch.from_numpy(data_test[s_id,:npts]).transpose(0,1)
+            pts_src = torch.from_numpy(data_test[s_id, :npts][mask]).transpose(0, 1)
             pts_dest = data_test[s_id, :npts]
             pts_dest = pts_dest[np.logical_not(mask)]
             pts_dest = torch.from_numpy(pts_dest).transpose(0, 1)
             res_shape_unseen = nearest_correspondance(
-                pts_src, pts_dest, res_shape_mask.transpose(0, 1), K=1).transpose(0, 1)
+                pts_src, pts_dest, res_shape_mask.transpose(0, 1), K=1
+            ).transpose(0, 1)
             res_shape[np.logical_not(mask)] = res_shape_unseen
 
         res_shape = res_shape.numpy()
 
         label_pred = np.argmax(res_shape, axis=1)
         cm_shape = confusion_matrix(
-            label_gt, label_pred, labels=list(range(part_end-part_start)))
+            label_gt, label_pred, labels=list(range(part_end - part_start))
+        )
         Confs.append(cm_shape)
 
     # compute IoU per shape
@@ -227,21 +221,27 @@ def main(_config):
         obj_IoUs[i] = IoUs_per_shape[labels_shape_test == i].mean()
     print("Done")
 
-    print('Objs | Inst | Air  Bag  Cap  Car  Cha  Ear  Gui  Kni  Lam  Lap  Mot  Mug  Pis  Roc  Ska  Tab')
-    print('-----|------|--------------------------------------------------------------------------------')
-    s = '{:3.1f} | {:3.1f} | '.format(
-        100 * obj_IoUs.mean(), 100 * np.mean(IoUs_per_shape))
+    print(
+        "Objs | Inst | Air  Bag  Cap  Car  Cha  Ear  Gui  "
+        "Kni  Lam  Lap  Mot  Mug  Pis  Roc  Ska  Tab"
+    )
+    print(
+        "-----|------|-------------------------------"
+        "-------------------------------------------------"
+    )
+    s = "{:3.1f} | {:3.1f} | ".format(
+        100 * obj_IoUs.mean(), 100 * np.mean(IoUs_per_shape)
+    )
     for AmIoU in obj_IoUs:
-        s += '{:3.1f} '.format(100 * AmIoU)
-    print(s + '\n')
+        s += "{:3.1f} ".format(100 * AmIoU)
+    print(s + "\n")
 
 
 if __name__ == "__main__":
 
     # get the arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '--config', '-c', help='Path to config file in savedir')
+    parser.add_argument("--config", "-c", help="Path to config file in savedir")
     args = parser.parse_args()
 
     # load the configuration

@@ -2,20 +2,15 @@
 
 # other imports
 import numpy as np
-import random
 import os
 from tqdm import tqdm
 import argparse
-from datetime import datetime
 from sklearn.metrics import confusion_matrix
 import h5py
-import time
 import yaml
 
 # torch imports
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import torch.utils.data
 
 from modelnet40_dataset import Modelnet40_dataset as Dataset
@@ -26,7 +21,7 @@ from lightconvpoint.utils import get_network
 def get_data(rootdir, files):
 
     train_filenames = []
-    for line in open(os.path.join(rootdir, files), "r"):
+    for line in open(os.path.join(rootdir, files)):
         line = line.split("\n")[0]
         line = os.path.basename(line)
         train_filenames.append(os.path.join(rootdir, line))
@@ -34,7 +29,7 @@ def get_data(rootdir, files):
     data = []
     labels = []
     for filename in train_filenames:
-        f = h5py.File(filename, 'r')
+        f = h5py.File(filename, "r")
         data.append(f["data"])
         labels.append(f["label"])
 
@@ -55,7 +50,7 @@ def main(_config):
     device = torch.device(_config["device"])
 
     # activate cudnn benchmark
-    if _config['device'] == "cuda":
+    if _config["device"] == "cuda":
         torch.backends.cudnn.benchmark = True
 
     # parameters for training
@@ -64,17 +59,26 @@ def main(_config):
 
     print("Creating network...", end="", flush=True)
 
-    def network_function(): return get_network(_config['model'], input_channels, N_LABELS,
-                                               _config['backend_conv'],
-                                               _config['backend_search'])
+    def network_function():
+        return get_network(
+            _config["model"],
+            input_channels,
+            N_LABELS,
+            _config["backend_conv"],
+            _config["backend_search"],
+        )
+
     net = network_function()
-    net.load_state_dict(torch.load(os.path.join(
-        savedir_root, "checkpoint.pth"), map_location=device)["state_dict"])
+    net.load_state_dict(
+        torch.load(os.path.join(savedir_root, "checkpoint.pth"), map_location=device)[
+            "state_dict"
+        ]
+    )
     net.to(device)
     print("Done")
 
     print("get the data path...", end="", flush=True)
-    rootdir = os.path.join(_config['datasetdir'], _config['dataset'])
+    rootdir = os.path.join(_config["datasetdir"], _config["dataset"])
     print("done")
 
     print("Getting test files...", end="", flush=True)
@@ -82,26 +86,32 @@ def main(_config):
     print("done - ", test_data.shape[0], " test files")
 
     print("Creating dataloaders...", end="", flush=True)
-    ds_test = Dataset(test_data, test_labels, pt_nbr=_config['npoints'],
-                      training=False, network_function=network_function,
-                      num_iter_per_shape=_config["num_iter_per_shape"])
-    test_loader = torch.utils.data.DataLoader(ds_test, batch_size=_config['batchsize'],
-                                              shuffle=False, num_workers=_config['threads'])
+    ds_test = Dataset(
+        test_data,
+        test_labels,
+        pt_nbr=_config["npoints"],
+        training=False,
+        network_function=network_function,
+        num_iter_per_shape=_config["num_iter_per_shape"],
+    )
+    test_loader = torch.utils.data.DataLoader(
+        ds_test,
+        batch_size=_config["batchsize"],
+        shuffle=False,
+        num_workers=_config["threads"],
+    )
     print("done")
 
     net.eval()
 
-    error = 0
     cm = np.zeros((N_LABELS, N_LABELS))
-    test_aloss = "0"
     test_oa = "0"
     test_aa = "0"
     test_aiou = "0"
     with torch.no_grad():
 
         predictions = np.zeros((test_data.shape[0], N_LABELS), dtype=float)
-        t = tqdm(test_loader, desc="Test", ncols=100,
-                 disable=_config['disable_tqdm'])
+        t = tqdm(test_loader, desc="Test", ncols=100, disable=_config["disable_tqdm"])
         for data in t:
 
             pts = data["pts"]
@@ -119,9 +129,7 @@ def main(_config):
             for i in range(len(net_support)):
                 net_support[i] = net_support[i].to(device)
 
-            outputs = net(
-                features, pts, support_points=net_support, indices=net_ids)
-            loss = F.cross_entropy(outputs, targets)
+            outputs = net(features, pts, support_points=net_support, indices=net_ids)
 
             outputs_np = outputs.cpu().detach().numpy()
 
@@ -130,8 +138,7 @@ def main(_config):
                 predictions[indices[i].item()] += outputs_np[i]
 
         predictions = np.argmax(predictions, axis=1)
-        cm = confusion_matrix(test_labels, predictions,
-                              labels=list(range(N_LABELS)))
+        cm = confusion_matrix(test_labels, predictions, labels=list(range(N_LABELS)))
 
         # scores
         test_oa = f"{metrics.stats_overall_accuracy(cm)*100:.5f}"
@@ -147,8 +154,7 @@ if __name__ == "__main__":
 
     # get the arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '--config', '-c', help='Path to config file in savedir')
+    parser.add_argument("--config", "-c", help="Path to config file in savedir")
     args = parser.parse_args()
 
     # load the configuration

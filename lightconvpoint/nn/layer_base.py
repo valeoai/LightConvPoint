@@ -1,14 +1,11 @@
 import torch
 import torch.nn as nn
-import numpy as np
 
 
 class Conv(nn.Module):
-
-    def __init__(self, network, search,
-                 activation=None,
-                 normalization=None,
-                 ):
+    def __init__(
+        self, network, search, activation=None, normalization=None,
+    ):
         """
         Parameters
         ----------
@@ -17,7 +14,7 @@ class Conv(nn.Module):
         search: spatial search object
             spatial knn object
         """
-        super(Conv, self).__init__()
+        super().__init__()
         self.network = network
         self.search = search
         self.activation = activation
@@ -37,13 +34,16 @@ class Conv(nn.Module):
             indices to gather
         """
         index_shape = index.shape
-        views = [input.shape[0]] + \
-            [1 if i != dim else -1 for i in range(1, len(input.shape))]
+        views = [input.shape[0]] + [
+            1 if i != dim else -1 for i in range(1, len(input.shape))
+        ]
         expanse = list(input.shape)
         expanse[0] = -1
         expanse[dim] = -1
         index = index.view(views).expand(expanse)
-        return torch.gather(input, dim, index).view(input.size(0), -1, index_shape[1], index_shape[2])
+        return torch.gather(input, dim, index).view(
+            input.size(0), -1, index_shape[1], index_shape[2]
+        )
 
     def forward(self, input, points, support_points=None, indices=None):
         """
@@ -62,14 +62,15 @@ class Conv(nn.Module):
             indices = indices.clone()
 
             # get the features and point coordinates associated with the indices
-            pts = self.batched_index_select(
-                points, dim=2, index=indices).contiguous()
+            pts = self.batched_index_select(points, dim=2, index=indices).contiguous()
             features = self.batched_index_select(
-                input, dim=2, index=indices).contiguous()
+                input, dim=2, index=indices
+            ).contiguous()
 
             # predict the features
             features, support_points = self.network(
-                features, pts, support_points.contiguous())
+                features, pts, support_points.contiguous()
+            )
 
             # apply normalization
             if self.norm is not None:

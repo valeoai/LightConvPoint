@@ -18,9 +18,16 @@ def pc_normalize(points):  # from KPConv code
 class Modelnet40_dataset(torch.utils.data.Dataset):
     """Main Class for Image Folder loader."""
 
-    def __init__(self, data, labels, pt_nbr=2048, training=True,
-                 num_iter_per_shape=1, jitter=False,
-                 network_function=None):
+    def __init__(
+        self,
+        data,
+        labels,
+        pt_nbr=2048,
+        training=True,
+        num_iter_per_shape=1,
+        jitter=False,
+        network_function=None,
+    ):
         """Init function."""
 
         self.data = data
@@ -38,7 +45,7 @@ class Modelnet40_dataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         """Get item."""
 
-        index_ = index//self.num_iter_per_shape
+        index_ = index // self.num_iter_per_shape
 
         # get the filename
         pts = self.data[index_]
@@ -61,8 +68,12 @@ class Modelnet40_dataset(torch.utils.data.Dataset):
         pts = pts.transpose(0, 1)
         features = torch.ones(1, pts.shape[1]).float()
 
-        return_dict = {"pts": pts, "features": features,
-                       "target": int(target), "index": index_}
+        return_dict = {
+            "pts": pts,
+            "features": features,
+            "target": int(target),
+            "index": index_,
+        }
 
         return return_dict
 

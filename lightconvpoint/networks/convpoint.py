@@ -1,35 +1,47 @@
 import torch
 import torch.nn as nn
-import time
-import torch.nn.functional as F
 import lightconvpoint.nn as lcp_nn
 
 # This mdoels for classification and segmentation
-# inspired from ConvPoint
+# are inspired from ConvPoint
 # https://github.com/aboulch/ConvPoint
 
 
 class ConvPointCls(nn.Module):
-
     def __init__(self, in_channels, out_channels, ConvNet, Search):
-        super(ConvPointCls, self).__init__()
+        super().__init__()
 
         # input 2048
-        self.cv1 = lcp_nn.Conv(ConvNet(in_channels, 64, 16),
-                               Search(K=16, npoints=1024),
-                               activation=nn.ReLU(), normalization=nn.BatchNorm1d(64))
-        self.cv2 = lcp_nn.Conv(ConvNet(64, 128, 16),
-                               Search(K=16, npoints=256),
-                               activation=nn.ReLU(), normalization=nn.BatchNorm1d(128))
-        self.cv3 = lcp_nn.Conv(ConvNet(128, 256, 16),
-                               Search(K=16, npoints=64),
-                               activation=nn.ReLU(), normalization=nn.BatchNorm1d(256))
-        self.cv4 = lcp_nn.Conv(ConvNet(256, 256, 16),
-                               Search(K=16, npoints=16),
-                               activation=nn.ReLU(), normalization=nn.BatchNorm1d(256))
-        self.cv5 = lcp_nn.Conv(ConvNet(256, 512, 16),
-                               Search(K=16, npoints=1),
-                               activation=nn.ReLU(), normalization=nn.BatchNorm1d(512))
+        self.cv1 = lcp_nn.Conv(
+            ConvNet(in_channels, 64, 16),
+            Search(K=16, npoints=1024),
+            activation=nn.ReLU(),
+            normalization=nn.BatchNorm1d(64),
+        )
+        self.cv2 = lcp_nn.Conv(
+            ConvNet(64, 128, 16),
+            Search(K=16, npoints=256),
+            activation=nn.ReLU(),
+            normalization=nn.BatchNorm1d(128),
+        )
+        self.cv3 = lcp_nn.Conv(
+            ConvNet(128, 256, 16),
+            Search(K=16, npoints=64),
+            activation=nn.ReLU(),
+            normalization=nn.BatchNorm1d(256),
+        )
+        self.cv4 = lcp_nn.Conv(
+            ConvNet(256, 256, 16),
+            Search(K=16, npoints=16),
+            activation=nn.ReLU(),
+            normalization=nn.BatchNorm1d(256),
+        )
+        self.cv5 = lcp_nn.Conv(
+            ConvNet(256, 512, 16),
+            Search(K=16, npoints=1),
+            activation=nn.ReLU(),
+            normalization=nn.BatchNorm1d(512),
+        )
 
         # last layer
         self.fcout = nn.Linear(512, out_channels)
@@ -44,20 +56,15 @@ class ConvPointCls(nn.Module):
         if indices is None:
             indices = [None for _ in range(5)]
 
-        x1, pts1, ids1 = self.cv1(
-            x, input_pts, support_points[0], indices=indices[0])
+        x1, pts1, ids1 = self.cv1(x, input_pts, support_points[0], indices=indices[0])
 
-        x2, pts2, ids2 = self.cv2(
-            x1, pts1, support_points[1], indices=indices[1])
+        x2, pts2, ids2 = self.cv2(x1, pts1, support_points[1], indices=indices[1])
 
-        x3, pts3, ids3 = self.cv3(
-            x2, pts2, support_points[2], indices=indices[2])
+        x3, pts3, ids3 = self.cv3(x2, pts2, support_points[2], indices=indices[2])
 
-        x4, pts4, ids4 = self.cv4(
-            x3, pts3, support_points[3], indices=indices[3])
+        x4, pts4, ids4 = self.cv4(x3, pts3, support_points[3], indices=indices[3])
 
-        x5, pts5, ids5 = self.cv5(
-            x4, pts4, support_points[4], indices=indices[4])
+        x5, pts5, ids5 = self.cv5(x4, pts4, support_points[4], indices=indices[4])
 
         if x1 is not None:
             xout = x5.view(x5.size(0), -1)
@@ -70,43 +77,92 @@ class ConvPointCls(nn.Module):
 
 class ConvPointSeg(nn.Module):
     def __init__(self, in_channels, out_channels, ConvNet, Search):
-        super(ConvPointSeg, self).__init__()
+        super().__init__()
 
         # input 8192 / 2048
-        self.cv0 = lcp_nn.Conv(
-            ConvNet(in_channels, 64, 16), Search(K=16))  # no stride
-        self.cv1 = lcp_nn.Conv(ConvNet(64, 64, 16), Search(K=16, npoints=2048),
-                               activation=nn.ReLU(), normalization=nn.BatchNorm1d(64))
-        self.cv2 = lcp_nn.Conv(ConvNet(64, 64, 16), Search(K=16, npoints=1024),
-                               activation=nn.ReLU(), normalization=nn.BatchNorm1d(64))
-        self.cv3 = lcp_nn.Conv(ConvNet(64, 64, 16), Search(K=16, npoints=256),
-                               activation=nn.ReLU(), normalization=nn.BatchNorm1d(64))
-        self.cv4 = lcp_nn.Conv(ConvNet(64, 128, 16), Search(K=16, npoints=64),
-                               activation=nn.ReLU(), normalization=nn.BatchNorm1d(128))
-        self.cv5 = lcp_nn.Conv(ConvNet(128, 128, 16), Search(K=16, npoints=16),
-                               activation=nn.ReLU(), normalization=nn.BatchNorm1d(128))
-        self.cv6 = lcp_nn.Conv(ConvNet(128, 128, 16), Search(K=16, npoints=8),
-                               activation=nn.ReLU(), normalization=nn.BatchNorm1d(128))
+        self.cv0 = lcp_nn.Conv(ConvNet(in_channels, 64, 16), Search(K=16))  # no stride
+        self.cv1 = lcp_nn.Conv(
+            ConvNet(64, 64, 16),
+            Search(K=16, npoints=2048),
+            activation=nn.ReLU(),
+            normalization=nn.BatchNorm1d(64),
+        )
+        self.cv2 = lcp_nn.Conv(
+            ConvNet(64, 64, 16),
+            Search(K=16, npoints=1024),
+            activation=nn.ReLU(),
+            normalization=nn.BatchNorm1d(64),
+        )
+        self.cv3 = lcp_nn.Conv(
+            ConvNet(64, 64, 16),
+            Search(K=16, npoints=256),
+            activation=nn.ReLU(),
+            normalization=nn.BatchNorm1d(64),
+        )
+        self.cv4 = lcp_nn.Conv(
+            ConvNet(64, 128, 16),
+            Search(K=16, npoints=64),
+            activation=nn.ReLU(),
+            normalization=nn.BatchNorm1d(128),
+        )
+        self.cv5 = lcp_nn.Conv(
+            ConvNet(128, 128, 16),
+            Search(K=16, npoints=16),
+            activation=nn.ReLU(),
+            normalization=nn.BatchNorm1d(128),
+        )
+        self.cv6 = lcp_nn.Conv(
+            ConvNet(128, 128, 16),
+            Search(K=16, npoints=8),
+            activation=nn.ReLU(),
+            normalization=nn.BatchNorm1d(128),
+        )
 
-        self.cv5d = lcp_nn.Conv(ConvNet(128, 128, 16), Search(K=4),
-                                activation=nn.ReLU(), normalization=nn.BatchNorm1d(128))
-        self.cv4d = lcp_nn.Conv(ConvNet(256, 128, 16), Search(K=4),
-                                activation=nn.ReLU(), normalization=nn.BatchNorm1d(128))
-        self.cv3d = lcp_nn.Conv(ConvNet(256, 64, 16), Search(K=4),
-                                activation=nn.ReLU(), normalization=nn.BatchNorm1d(64))
-        self.cv2d = lcp_nn.Conv(ConvNet(128, 64, 16), Search(K=8),
-                                activation=nn.ReLU(), normalization=nn.BatchNorm1d(64))
-        self.cv1d = lcp_nn.Conv(ConvNet(128, 64, 16), Search(K=8),
-                                activation=nn.ReLU(), normalization=nn.BatchNorm1d(64))
-        self.cv0d = lcp_nn.Conv(ConvNet(128, 64, 16), Search(K=8),
-                                activation=nn.ReLU(), normalization=nn.BatchNorm1d(64))
+        self.cv5d = lcp_nn.Conv(
+            ConvNet(128, 128, 16),
+            Search(K=4),
+            activation=nn.ReLU(),
+            normalization=nn.BatchNorm1d(128),
+        )
+        self.cv4d = lcp_nn.Conv(
+            ConvNet(256, 128, 16),
+            Search(K=4),
+            activation=nn.ReLU(),
+            normalization=nn.BatchNorm1d(128),
+        )
+        self.cv3d = lcp_nn.Conv(
+            ConvNet(256, 64, 16),
+            Search(K=4),
+            activation=nn.ReLU(),
+            normalization=nn.BatchNorm1d(64),
+        )
+        self.cv2d = lcp_nn.Conv(
+            ConvNet(128, 64, 16),
+            Search(K=8),
+            activation=nn.ReLU(),
+            normalization=nn.BatchNorm1d(64),
+        )
+        self.cv1d = lcp_nn.Conv(
+            ConvNet(128, 64, 16),
+            Search(K=8),
+            activation=nn.ReLU(),
+            normalization=nn.BatchNorm1d(64),
+        )
+        self.cv0d = lcp_nn.Conv(
+            ConvNet(128, 64, 16),
+            Search(K=8),
+            activation=nn.ReLU(),
+            normalization=nn.BatchNorm1d(64),
+        )
 
         self.fcout = nn.Conv1d(128, out_channels, 1)
         self.drop = nn.Dropout(0.5)
         self.relu = nn.ReLU(inplace=True)
         self.features_out_size = 128
 
-    def forward(self, x, input_pts, support_points=None, indices=None, return_features=False):
+    def forward(
+        self, x, input_pts, support_points=None, indices=None, return_features=False
+    ):
 
         if support_points is None:
             support_points = [None for _ in range(13)]
@@ -115,18 +171,12 @@ class ConvPointSeg(nn.Module):
 
         # ENCODER
         x0, pts0, ids0 = self.cv0(x, input_pts, input_pts, indices=indices[0])
-        x1, pts1, ids1 = self.cv1(
-            x0, pts0, support_points[0], indices=indices[1])
-        x2, pts2, ids2 = self.cv2(
-            x1, pts1, support_points[1], indices=indices[2])
-        x3, pts3, ids3 = self.cv3(
-            x2, pts2, support_points[2], indices=indices[3])
-        x4, pts4, ids4 = self.cv4(
-            x3, pts3, support_points[3], indices=indices[4])
-        x5, pts5, ids5 = self.cv5(
-            x4, pts4, support_points[4], indices=indices[5])
-        x6, pts6, ids6 = self.cv6(
-            x5, pts5, support_points[5], indices=indices[6])
+        x1, pts1, ids1 = self.cv1(x0, pts0, support_points[0], indices=indices[1])
+        x2, pts2, ids2 = self.cv2(x1, pts1, support_points[1], indices=indices[2])
+        x3, pts3, ids3 = self.cv3(x2, pts2, support_points[2], indices=indices[3])
+        x4, pts4, ids4 = self.cv4(x3, pts3, support_points[3], indices=indices[4])
+        x5, pts5, ids5 = self.cv5(x4, pts4, support_points[4], indices=indices[5])
+        x6, pts6, ids6 = self.cv6(x5, pts5, support_points[5], indices=indices[6])
 
         # DECODER
         x5d, _, ids5d = self.cv5d(x6, pts6, pts5, indices=indices[7])
@@ -152,5 +202,22 @@ class ConvPointSeg(nn.Module):
                 return xout
 
         else:
-            return None, [ids0, ids1, ids2, ids3, ids4, ids5, ids6,
-                          ids5d, ids4d, ids3d, ids2d, ids1d, ids0d], [pts1, pts2, pts3, pts4, pts5, pts6]
+            return (
+                None,
+                [
+                    ids0,
+                    ids1,
+                    ids2,
+                    ids3,
+                    ids4,
+                    ids5,
+                    ids6,
+                    ids5d,
+                    ids4d,
+                    ids3d,
+                    ids2d,
+                    ids1d,
+                    ids0d,
+                ],
+                [pts1, pts2, pts3, pts4, pts5, pts6],
+            )
