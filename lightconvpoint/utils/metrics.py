@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def stats_overall_accuracy(cm):
     """Computes the overall accuracy.
 

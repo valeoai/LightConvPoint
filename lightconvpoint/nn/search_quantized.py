@@ -15,30 +15,39 @@ def batched_index_select(input, dim, index):
 
 
 class SearchQuantized:
-    """Search object for computing support points and neighborhoods with quantized support point search.
+    """Search object for computing support points and neighborhoods with quantized
+    support point search.
 
-    Computes the support points and their K-nearest neighbors according to the strategy defined in LightConvPoint paper.
+    Computes the support points and their K-nearest neighbors according to the strategy
+    defined in LightConvPoint paper.
 
     # Arguments
         K: int.
             Size of the neighborhood.
         stride: int.
-            Defaults to 1. Reduction factor for computing the number of support points (1 all input points are supoprt points).
+            Defaults to 1. Reduction factor for computing the number of support points
+            (1 all input points are supoprt points).
         npoints: (optional) int.
-            Defaults to None. Number of support points to be generated. (if used, overrides the stride)
+            Defaults to None. Number of support points to be generated.
+            (if used, overrides the stride)
 
     # Forward arguments
         points: 3-D torch tensor.
-            The input points. Dimensions are (B, D, N) with B the batch size, D the dimension of the spatial space and N the number of input points.
+            The input points. Dimensions are (B, D, N) with B the batch size, D the
+            dimension of the spatial space and N the number of input points.
         support_points: (optional) 3-D torch tensor.
-            The support points to project features on. If not provided, use the `search` object of the layer to compute them.
-            Dimensions are (B, D, N) with B the batch size, D the dimenstion of the spatial space and N the number of input points.
+            The support points to project features on. If not provided, use the `search`
+            object of the layer to compute them.
+            Dimensions are (B, D, N) with B the batch size, D the dimenstion of the
+            spatial space and N the number of input points.
 
     # Returns
         support_points: 3-D torch tensor.
-            The support points. If they were provided as an input, return the same tensor.
+            The support points. If they were provided as an input, return the same
+            tensor.
         indices: 3-D torch tensor.
-            The indices of the neighboring points with respect to the support points. If they were provided as an input, return the same tensor.
+            The indices of the neighboring points with respect to the support points.
+            If they were provided as an input, return the same tensor.
     """
 
     def __init__(self, K, stride=1, npoints=None):

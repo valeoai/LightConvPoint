@@ -8,12 +8,14 @@ def rotate_point_cloud(batch_data, rotation_matrix=None, inverse=False):
 
         # Arguments
             batch_data: 3-D array.
-                Input batch points. Dimensions (B, N, 3) with B the batchsize, N the number of points and 3 the dimension of the spatial space.
+                Input batch points. Dimensions (B, N, 3) with B the batchsize, N the
+                number of points and 3 the dimension of the spatial space.
             rotation_matrix: 2-D array.
-                Defaults to `None`. If provided, the rotation matrix is applied on the points.
+                Defaults to `None`. If provided, the rotation matrix is applied on the
+                points.
             inverse: Boolean.
                 Defaults to `False`. Apply inverse rotation.
-        
+
         # Returns
             Batch of rotated points, with same size as input.
     """
@@ -45,8 +47,9 @@ def rotate_point_cloud(batch_data, rotation_matrix=None, inverse=False):
 
 def with_indices_computation_rotation(func):
     """Computes the indices and support points in the dataset.
-    
-    Calls the network instance of the dataset to generate search indices and support points to exploit multi-thread data loading.
+
+    Calls the network instance of the dataset to generate search indices and support
+    points to exploit multi-thread data loading.
 
     # Requires
         net: network instance.

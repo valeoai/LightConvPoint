@@ -65,7 +65,8 @@ class ResnetBlock(nn.Module):
 class KPConvCls(nn.Module):
     """KPConv classification network.
 
-    Network inspired from the KPConv paper and code (https://github.com/HuguesTHOMAS/KPConv)
+    Network inspired from the KPConv paper and code
+    (https://github.com/HuguesTHOMAS/KPConv)
 
     # Arguments
         in_channels: int.
@@ -161,7 +162,8 @@ class KPConvSeg(nn.Module):
 
     """KPConv segmentation network.
 
-    Network inspired from the KPConv paper and code (https://github.com/HuguesTHOMAS/KPConv)
+    Network inspired from the KPConv paper and code
+    (https://github.com/HuguesTHOMAS/KPConv)
 
     # Arguments
         in_channels: int.
@@ -173,6 +175,7 @@ class KPConvSeg(nn.Module):
         Search: search algorithm.
             The search class to be used in the network.
     """
+
     def __init__(self, in_channels, out_channels, ConvNet, Search):
         super().__init__()
 

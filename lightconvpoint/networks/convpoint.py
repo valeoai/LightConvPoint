@@ -22,6 +22,7 @@ class ConvPointCls(nn.Module):
         Search: search algorithm.
             The search class to be used in the network.
     """
+
     def __init__(self, in_channels, out_channels, ConvNet, Search):
         super().__init__()
 
@@ -104,6 +105,7 @@ class ConvPointSeg(nn.Module):
         Search: search algorithm.
             The search class to be used in the network.
     """
+
     def __init__(self, in_channels, out_channels, ConvNet, Search):
         super().__init__()
 

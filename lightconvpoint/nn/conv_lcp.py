@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 class LCP(nn.Module):
     """LightConvPoint convolution layer.
-    
+
     To be used with a `lightconvpoint.nn.Conv` instance.
 
     # Arguments
@@ -22,18 +22,23 @@ class LCP(nn.Module):
 
     # Forward arguments
         input: 3-D torch tensor.
-            The input features. Dimensions are (B, I, N) with B the batch size, I the number of input channels and N the number of input points.
+            The input features. Dimensions are (B, I, N) with B the batch size, I the
+            number of input channels and N the number of input points.
         points: 3-D torch tensor.
-            The input points. Dimensions are (B, D, N) with B the batch size, D the dimension of the spatial space and N the number of input points.
+            The input points. Dimensions are (B, D, N) with B the batch size, D the
+            dimension of the spatial space and N the number of input points.
         support_points: 3-D torch tensor.
-            The support points to project features on. Dimensions are (B, O, N) with B the batch size, O the number of output channels and N the number of input points.
+            The support points to project features on. Dimensions are (B, O, N) with B
+            the batch size, O the number of output channels and N the number of input
+            points.
 
     # Returns
         features: 3-D torch tensor.
-            The computed features. Dimensions are (B, O, N) with B the batch size, O the number of output channels and N the number of input points.
+            The computed features. Dimensions are (B, O, N) with B the batch size,
+            O the number of output channels and N the number of input points.
         support_points: 3-D torch tensor.
-            The support points. If they were provided as an input, return the same tensor.
-            
+            The support points. If they were provided as an input, return the same
+            tensor.
     """
 
     def __init__(self, in_channels, out_channels, kernel_size, bias=True, dim=3):
