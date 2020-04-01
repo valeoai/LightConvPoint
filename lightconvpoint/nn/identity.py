@@ -2,7 +2,11 @@ import torch.nn as nn
 
 
 class Identity(nn.Module):
-    """Indentity module for LCP."""
+    """Indentity module compatible with LightConvPoint.
+    
+    # Returns
+        (input, support_points, indices)
+    """
 
     def __init__(self):
         super().__init__()

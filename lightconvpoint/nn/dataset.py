@@ -4,12 +4,18 @@ import numpy as np
 
 
 def rotate_point_cloud(batch_data, rotation_matrix=None, inverse=False):
-    """ Randomly rotate the point clouds to augument the dataset
-        rotation is per shape based along up direction
-        Input:
-          BxNx3 array, original batch of point clouds
-        Return:
-          BxNx3 array, rotated batch of point clouds
+    """ Randomly rotate the point clouds to augument the dataset.
+
+        # Arguments
+            batch_data: 3-D array.
+                Input batch points. Dimensions (B, N, 3) with B the batchsize, N the number of points and 3 the dimension of the spatial space.
+            rotation_matrix: 2-D array.
+                Defaults to `None`. If provided, the rotation matrix is applied on the points.
+            inverse: Boolean.
+                Defaults to `False`. Apply inverse rotation.
+        
+        # Returns
+            Batch of rotated points, with same size as input.
     """
     if rotation_matrix is None:  # create the rotation matrix
         rotation_angle_x = np.random.uniform() * 2 * np.pi
@@ -38,6 +44,19 @@ def rotate_point_cloud(batch_data, rotation_matrix=None, inverse=False):
 
 
 def with_indices_computation_rotation(func):
+    """Computes the indices and support points in the dataset.
+    
+    Calls the network instance of the dataset to generate search indices and support points to exploit multi-thread data loading.
+
+    # Requires
+        net: network instance.
+            Network instance in field `net`of the dataset.
+
+    # Returns
+
+        Add `net_indices` and `net_support`to the return dictionary of the dataset.
+    """
+
     @functools.wraps(func)
     def wrapper_decorator(*args, **kwargs):
         # Do something before

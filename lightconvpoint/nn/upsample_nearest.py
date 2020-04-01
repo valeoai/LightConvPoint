@@ -4,11 +4,30 @@ import lightconvpoint.knn as nearest_neighbors
 
 
 class UpSampleNearest(nn.Module):
+    """Nearest neighbor interpolation.
+
+    # Forward arguments
+        input: 3-D torch tensor.
+            Input feature tensor. Dimensions are (B, I, N) with B the batch size, I the number of input channels and N the number of input points.
+        points: 3-D torch tensor.
+            The input points. Dimensions are (B, D, N) with B the batch size, D the dimension of the spatial space and N the number of input points.
+        support_points: 3-D torch tensor.
+            The support points to project features on.
+            Dimensions are (B, D, N) with B the batch size, D the dimenstion of the spatial space and N the number of input points.
+        indices: (optional) 3-D torch tensor.
+            The indices of the neighboring points with respect to the support points.
+
+    # Forward returns
+        features: 3-D torch tensor.
+            The computed features. Dimensions are (B, O, N) with B the batch size, O the number of output channels and N the number of input points.
+        support_points: 3-D torch tensor.
+            The support points. If they were provided as an input, return the same tensor.
+        indices: 3-D torch tensor.
+            The indices of the neighboring points with respect to the support points. If they were provided as an input, return the same tensor.
+
+    """
+
     def __init__(self):
-        """
-        ConvPt: network for computing the convolution
-        SearchPt: spatial knn or radius search function
-        """
         super().__init__()
 
     def batched_index_select(self, input, dim, index):
@@ -28,9 +47,7 @@ class UpSampleNearest(nn.Module):
         )
 
     def forward(self, input, points, support_points, indices=None):
-        """
-        Forward function of the layer
-        """
+        """Forward function of the layer."""
 
         # support points are known, only compute the knn
         if indices is None:

@@ -8,6 +8,20 @@ import lightconvpoint.nn as lcp_nn
 
 
 class ConvPointCls(nn.Module):
+    """ConvPoint classification network.
+
+    Network inspired from the KPConv paper and code (https://github.com/aboulch/ConvPoint)
+
+    # Arguments
+        in_channels: int.
+            The number of input channels.
+        out_channels: int.
+            The number of output  channels.
+        ConvNet: convolutional layer.
+            The convolutional class to be used in the network.
+        Search: search algorithm.
+            The search class to be used in the network.
+    """
     def __init__(self, in_channels, out_channels, ConvNet, Search):
         super().__init__()
 
@@ -76,6 +90,20 @@ class ConvPointCls(nn.Module):
 
 
 class ConvPointSeg(nn.Module):
+    """ConvPoint segmentation network.
+
+    Network inspired from the KPConv paper and code (https://github.com/aboulch/ConvPoint)
+
+    # Arguments
+        in_channels: int.
+            The number of input channels.
+        out_channels: int.
+            The number of output  channels.
+        ConvNet: convolutional layer.
+            The convolutional class to be used in the network.
+        Search: search algorithm.
+            The search class to be used in the network.
+    """
     def __init__(self, in_channels, out_channels, ConvNet, Search):
         super().__init__()
 

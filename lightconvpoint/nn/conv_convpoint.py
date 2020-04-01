@@ -5,23 +5,40 @@ import math
 
 
 class ConvPoint(nn.Module):
-    """ConvPoint (https://github.com/aboulch/ConvPoint) convolution layer."""
+    """ConvPoint convolution layer.
+    
+    Provide the convolution layer as defined in ConvPoint paper (https://github.com/aboulch/ConvPoint).
+    To be used with a `lightconvpoint.nn.Conv` instance.
+
+    # Arguments
+        in_channels: int.
+            The number of input channels.
+        out_channels: int.
+            The number of output channels.
+        kernel_size: int.
+            The size of the kernel.
+        bias: Boolean.
+            Defaults to `False`. Add an optimizable bias.
+        dim: int.
+            Defaults to `3`. Spatial dimension.
+
+    # Forward arguments
+        input: 3-D torch tensor.
+            The input features. Dimensions are (B, I, N) with B the batch size, I the number of input channels and N the number of input points.
+        points: 3-D torch tensor.
+            The input points. Dimensions are (B, D, N) with B the batch size, D the dimension of the spatial space and N the number of input points.
+        support_points: 3-D torch tensor.
+            The support points to project features on. Dimensions are (B, O, N) with B the batch size, O the number of output channels and N the number of input points.
+
+    # Returns
+        features: 3-D torch tensor.
+            The computed features. Dimensions are (B, O, N) with B the batch size, O the number of output channels and N the number of input points.
+        support_points: 3-D torch tensor.
+            The support points. If they were provided as an input, return the same tensor.
+            
+    """
 
     def __init__(self, in_channels, out_channels, kernel_size, bias=True, dim=3):
-        """
-        Parameters
-        ----------
-        in_channels: int
-            number of input channels
-        out_channels: int
-            number of output channels
-        kernel_size: int
-            number of kernel element
-        bias: bool
-            add a bias to output features (default is True)
-        dim: int
-            dimension of the geometrical space (default is 3)
-        """
         super().__init__()
 
         # parameters
@@ -70,6 +87,7 @@ class ConvPoint(nn.Module):
         return pts / maxi.view(maxi.size(0), 1, maxi.size(1), 1)
 
     def forward(self, input, points, support_points):
+        """Computes the features associated with the support points."""
 
         # center the neighborhoods (local coordinates)
         pts = points - support_points.unsqueeze(3)

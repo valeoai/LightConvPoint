@@ -2,10 +2,6 @@ import torch
 import torch.nn as nn
 import lightconvpoint.nn as lcp_nn
 
-# This is models for classification and semantic segmentation
-# inspire from KPConv
-# https://github.com/HuguesTHOMAS/KPConv
-
 
 class ResnetBlock(nn.Module):
     def __init__(
@@ -67,6 +63,21 @@ class ResnetBlock(nn.Module):
 
 
 class KPConvCls(nn.Module):
+    """KPConv classification network.
+
+    Network inspired from the KPConv paper and code (https://github.com/HuguesTHOMAS/KPConv)
+
+    # Arguments
+        in_channels: int.
+            The number of input channels.
+        out_channels: int.
+            The number of output  channels.
+        ConvNet: convolutional layer.
+            The convolutional class to be used in the network.
+        Search: search algorithm.
+            The search class to be used in the network.
+    """
+
     def __init__(self, in_channels, out_channels, ConvNet, Search):
         super().__init__()
 
@@ -146,9 +157,22 @@ class KPConvCls(nn.Module):
             )
 
 
-class KPConvSeg(
-    nn.Module
-):  # Segsmall with config option for precomputing in the dataloader
+class KPConvSeg(nn.Module):
+
+    """KPConv segmentation network.
+
+    Network inspired from the KPConv paper and code (https://github.com/HuguesTHOMAS/KPConv)
+
+    # Arguments
+        in_channels: int.
+            The number of input channels.
+        out_channels: int.
+            The number of output  channels.
+        ConvNet: convolutional layer.
+            The convolutional class to be used in the network.
+        Search: search algorithm.
+            The search class to be used in the network.
+    """
     def __init__(self, in_channels, out_channels, ConvNet, Search):
         super().__init__()
 
