@@ -25,13 +25,3 @@ python train.py with shapenet.json
 ## Semantic Segmentation
 
 *To be released*
-
-## Main paraleters
-
-### Convolution
-
-### Search algorithm
-* LCP quantized search
-* Farthest point sampling (PointNet++)
-* Iterative sampling with seen points memory (ConvPoint)
-* Random sampling

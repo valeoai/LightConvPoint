@@ -17,6 +17,7 @@ TODO add Arxiv citation
 * [Installation](doc/install.md): install and setup lightconvpoint
 * [Run experients](examples/README.md): re-run experiments from the paper
 * [Getting started](doc/getting_started.md): start to design your own network
+* [Library features and implemented algorithms](doc/features.md): description of avalailable algorithms in LCP (convolutional layers such as LightConvPoint or ConvPoint; support point selection including quantized search or farthest point sampling).
 
 ### Example
 
