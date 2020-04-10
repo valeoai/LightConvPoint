@@ -1,4 +1,4 @@
-# LightConvPoint
+# [LightConvPoint](https://arxiv.org/abs/2004.04462)
 
 A framework to build convolutional network for point cloud processing.
 
@@ -6,10 +6,17 @@ A framework to build convolutional network for point cloud processing.
 
 ## Paper
 
+The paper is available at arxiv: [https://arxiv.org/abs/2004.04462](https://arxiv.org/abs/2004.04462)
+
 If you use this code in your research, please consider citing:
 
 ```
-TODO add Arxiv citation
+@article{boulch2020lightconvpoint,
+  title={LightConvPoint: convolution for points},
+  author={Boulch, Alexandre and Puy, Gilles and Marlet, Renaud},
+  journal={arXiv preprint arXiv:2004.04462},
+  year={2020}
+}
 ```
 
 ## Ressources
