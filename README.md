@@ -2,17 +2,18 @@
 
 A framework to build convolutional network for point cloud processing.
 
-![SnapNet products](./doc/predictions.png)
+![FKAConv products](./doc/predictions.png)
 
-## Paper
+## Paper: FKAConv, Feature-Kernel Alignment for Point Cloud Convolution
 
+LightConvPoint is the framework developped and used for FKAConv experiments.
 The paper is available at arxiv: [https://arxiv.org/abs/2004.04462](https://arxiv.org/abs/2004.04462)
 
-If you use this code in your research, please consider citing:
+If you use the FKAConv code or the LightConvPoint framework in your research, please consider citing:
 
 ```
 @article{boulch2020lightconvpoint,
-  title={LightConvPoint: convolution for points},
+  title={{FKAConv: Feature-Kernel Alignment for Point Cloud Convolution}},
   author={Boulch, Alexandre and Puy, Gilles and Marlet, Renaud},
   journal={arXiv preprint arXiv:2004.04462},
   year={2020}
