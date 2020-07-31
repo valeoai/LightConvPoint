@@ -36,15 +36,15 @@ def main(_run, _config):
 
     print(_config)
 
-    savedir_root = _config["savedir"]
-    device = torch.device(_config["device"])
+    savedir_root = _config["training"]["savedir"]
+    device = torch.device(_config["misc"]["device"])
 
     # save the config file
     os.makedirs(savedir_root, exist_ok=True)
     save_config_file(eval(str(_config)), os.path.join(savedir_root, "config.yaml"))
 
     print("get the data path...", end="", flush=True)
-    rootdir = os.path.join(_config["datasetdir"], _config["dataset"])
+    rootdir = os.path.join(_config["dataset"]["datasetdir"], _config["dataset"]["dataset"])
     print("done")
 
     filelist_train = os.path.join(rootdir, "train_files.txt")
@@ -122,11 +122,11 @@ def main(_run, _config):
 
     def network_function():
         return get_network(
-            _config["model"],
+            _config["network"]["model"],
             in_channels=1,
             out_channels=N_CLASSES,
-            ConvNet_name=_config["backend_conv"],
-            Search_name=_config["backend_search"],
+            backend_conv=_config["network"]["backend_conv"],
+            backend_search=_config["network"]["backend_search"],
         )
 
     net = network_function()
@@ -140,46 +140,46 @@ def main(_run, _config):
         data_num_train,
         labels_pts_train,
         labels_shape_train,
-        npoints=_config["npoints"],
+        npoints=_config["dataset"]["npoints"],
         training=True,
         network_function=network_function,
     )
     train_loader = torch.utils.data.DataLoader(
         ds,
-        batch_size=_config["batchsize"],
+        batch_size=_config["training"]["batchsize"],
         shuffle=True,
-        num_workers=_config["threads"],
+        num_workers=_config["misc"]["threads"],
     )
     ds_test = Dataset(
         data_test,
         data_num_test,
         labels_pts_test,
         labels_shape_test,
-        npoints=_config["npoints"],
+        npoints=_config["dataset"]["npoints"],
         training=False,
         network_function=network_function,
     )
     test_loader = torch.utils.data.DataLoader(
         ds_test,
-        batch_size=_config["batchsize"],
+        batch_size=_config["training"]["batchsize"],
         shuffle=False,
-        num_workers=_config["threads"],
+        num_workers=_config["misc"]["threads"],
     )
     print("Done")
 
     print("Creating optimizer...", end="", flush=True)
-    optimizer = torch.optim.Adam(net.parameters(), lr=_config["lr_start"], eps=1e-3)
+    optimizer = torch.optim.Adam(net.parameters(), lr=_config["training"]["lr_start"], eps=1e-3)
     epoch_start = 0
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
         optimizer,
-        _config["milestones"],
-        gamma=_config["gamma"],
+        _config["training"]["milestones"],
+        gamma=_config["training"]["gamma"],
         last_epoch=epoch_start - 1,
     )
     print("Done")
 
     # create the log file
-    for epoch in range(epoch_start, _config["epoch_nbr"]):
+    for epoch in range(epoch_start, _config["training"]["epoch_nbr"]):
 
         # train
         net.train()
@@ -188,7 +188,7 @@ def main(_run, _config):
             train_loader,
             ncols=120,
             desc=f"Epoch {epoch}",
-            disable=_config["disable_tqdm"],
+            disable=_config["misc"]["disable_tqdm"],
         )
         for data in t:
 
@@ -241,7 +241,7 @@ def main(_run, _config):
                 test_loader,
                 ncols=120,
                 desc=f"Test {epoch}",
-                disable=_config["disable_tqdm"],
+                disable=_config["misc"]["disable_tqdm"],
             )
             for data in t:
                 pts = data["pts"].to(device)

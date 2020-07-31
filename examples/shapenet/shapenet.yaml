@@ -32,6 +32,7 @@ training:
 # Testing
 test:
     num_iter_per_shape: 16
+    batchsize: 16
 
 # Misc
 misc:

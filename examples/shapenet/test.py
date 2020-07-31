@@ -32,11 +32,11 @@ def main(_config):
 
     print(_config)
 
-    savedir_root = _config["savedir"]
-    device = torch.device(_config["device"])
+    savedir_root = _config["training"]["savedir"]
+    device = torch.device(_config["misc"]["device"])
 
     print("get the data path...", end="", flush=True)
-    rootdir = os.path.join(_config["datasetdir"], _config["dataset"])
+    rootdir = os.path.join(_config["dataset"]["datasetdir"], _config["dataset"]["dataset"])
     print("done")
 
     filelist_test = os.path.join(rootdir, "test_files.txt")
@@ -84,11 +84,11 @@ def main(_config):
 
     def network_function():
         return get_network(
-            _config["model"],
+            _config["network"]["model"],
             in_channels=1,
             out_channels=N_CLASSES,
-            ConvNet_name=_config["backend_conv"],
-            Search_name=_config["backend_search"],
+            backend_conv=_config["network"]["backend_conv"],
+            backend_search=_config["network"]["backend_search"],
         )
 
     net = network_function()
@@ -106,16 +106,16 @@ def main(_config):
         data_num_test,
         labels_pts_test,
         labels_shape_test,
-        npoints=_config["npoints"],
+        npoints=_config["dataset"]["npoints"],
         training=False,
         network_function=network_function,
-        num_iter_per_shape=_config["num_iter_per_shape"],
+        num_iter_per_shape=_config["test"]["num_iter_per_shape"],
     )
     test_loader = torch.utils.data.DataLoader(
         ds_test,
-        batch_size=_config["batchsize"],
+        batch_size=_config["test"]["batchsize"],
         shuffle=False,
-        num_workers=_config["threads"],
+        num_workers=_config["misc"]["threads"],
     )
     print("Done")
 
@@ -244,8 +244,14 @@ if __name__ == "__main__":
     parser.add_argument("--config", "-c", help="Path to config file in savedir")
     args = parser.parse_args()
 
+    # update the base directory
+    # makes it possible to move the directory
+    # without editing the config file
+    savedir = os.path.dirname(args.config)
+
     # load the configuration
     config = yaml.load(open(args.config))
+    config["training"]["savedir"] = savedir
 
     # call the main function
     main(config)
