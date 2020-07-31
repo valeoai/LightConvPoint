@@ -23,37 +23,12 @@ from sacred.config import save_config_file
 SETTINGS.CAPTURE_MODE = "sys"  # for tqdm
 ex = Experiment("Shapenet")
 ex.captured_out_filter = apply_backspaces_and_linefeeds  # for tqdm
+ex.add_config("shapenet.yaml")
 ######
 
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-
-# Configuration
-@ex.config
-def my_config():
-    datasetdir = None
-    dataset = None
-    savedir = None
-    batchsize = None
-    device = None
-    npoints = None
-    num_iter_per_shape = None
-    model = None
-    backend_conv = None
-    backend_search = None
-    lr_start = None
-    epoch_nbr = None
-    milestones = None
-    gamma = None
-    use_category = None
-    weighting = None
-    threads = None
-    disable_tqdm = None
-
-
-######
 
 
 @ex.automain

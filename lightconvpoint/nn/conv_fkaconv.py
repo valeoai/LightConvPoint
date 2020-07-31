@@ -3,8 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class LCP(nn.Module):
-    """LightConvPoint convolution layer.
+class FKAConv(nn.Module):
+    """FKAConv convolution layer.
 
     To be used with a `lightconvpoint.nn.Conv` instance.
 
@@ -41,7 +41,7 @@ class LCP(nn.Module):
             tensor.
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size, bias=True, dim=3):
+    def __init__(self, in_channels, out_channels, kernel_size, bias=True, dim=3, kernel_separation=False, **kwargs):
         super().__init__()
 
         # parameters
@@ -51,8 +51,19 @@ class LCP(nn.Module):
         self.bias = bias
         self.dim = dim
 
-        # convolution layer
-        self.cv = nn.Conv2d(in_channels, out_channels, (1, kernel_size), bias=bias)
+        # convolution kernel
+        if kernel_separation:
+            # equivalent to two kernels K1 * K2
+            dm = int(ceil(self.out_channels / self.in_channels))
+            if in_channels%groups != 0:
+                print(f"Warning - inchannels {in_channels} not divisible by groups {groups} -> setting groups to 1")
+                groups=1
+            self.cv = nn.Sequential(
+                nn.Conv2d(in_channels, dm*in_channels, (1, kernel_size), bias=bias, groups=self.in_channels),
+                nn.Conv2d(in_channels*dm, out_channels, (1, 1), bias=bias)
+            )
+        else:
+            self.cv = nn.Conv2d(in_channels, out_channels, (1, kernel_size), bias=bias)
 
         # normalization radius
         self.norm_radius_momentum = 0.1

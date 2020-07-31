@@ -46,11 +46,11 @@ def count_parameters(model):
 def main(_config):
 
     print(_config)
-    savedir_root = _config["savedir"]
-    device = torch.device(_config["device"])
+    savedir_root = _config["training"]["savedir"]
+    device = torch.device(_config["misc"]["device"])
 
     # activate cudnn benchmark
-    if _config["device"] == "cuda":
+    if _config["misc"]["device"] == "cuda":
         torch.backends.cudnn.benchmark = True
 
     # parameters for training
@@ -61,11 +61,11 @@ def main(_config):
 
     def network_function():
         return get_network(
-            _config["model"],
+            _config["network"]["model"],
             input_channels,
             N_LABELS,
-            _config["backend_conv"],
-            _config["backend_search"],
+            _config["network"]["backend_conv"],
+            _config["network"]["backend_search"],
         )
 
     net = network_function()
@@ -78,7 +78,7 @@ def main(_config):
     print("Done")
 
     print("get the data path...", end="", flush=True)
-    rootdir = os.path.join(_config["datasetdir"], _config["dataset"])
+    rootdir = os.path.join(_config["dataset"]["datasetdir"], _config["dataset"]["dataset"])
     print("done")
 
     print("Getting test files...", end="", flush=True)
@@ -89,16 +89,16 @@ def main(_config):
     ds_test = Dataset(
         test_data,
         test_labels,
-        pt_nbr=_config["npoints"],
+        pt_nbr=_config["dataset"]["npoints"],
         training=False,
         network_function=network_function,
-        num_iter_per_shape=_config["num_iter_per_shape"],
+        num_iter_per_shape=_config["test"]["num_iter_per_shape"],
     )
     test_loader = torch.utils.data.DataLoader(
         ds_test,
-        batch_size=_config["batchsize"],
+        batch_size=_config["test"]["batchsize"],
         shuffle=False,
-        num_workers=_config["threads"],
+        num_workers=_config["misc"]["threads"],
     )
     print("done")
 
@@ -111,7 +111,7 @@ def main(_config):
     with torch.no_grad():
 
         predictions = np.zeros((test_data.shape[0], N_LABELS), dtype=float)
-        t = tqdm(test_loader, desc="Test", ncols=100, disable=_config["disable_tqdm"])
+        t = tqdm(test_loader, desc="Test", ncols=100, disable=_config["misc"]["disable_tqdm"])
         for data in t:
 
             pts = data["pts"]
@@ -159,6 +159,8 @@ if __name__ == "__main__":
 
     # load the configuration
     config = yaml.load(open(args.config))
+
+    config["training"]["savedir"] = os.path.dirname(args.config)
 
     # call the main function
     main(config)

@@ -1,21 +1,16 @@
 import lightconvpoint.nn as lcp_nn
+import lightconvpoint.networks as lcp_net
 
 
-def get_conv(conv_name):
+def get_conv(backend_conv):
     """Get a convolutional layer by name.
 
     # Arguments
         conv_name: string.
             The name of the convolutional layer.
     """
-    if conv_name == "LCP":
-        return lcp_nn.LCP
-    elif conv_name == "ConvPoint":
-        return lcp_nn.ConvPoint
-    elif conv_name == "PCCN":
-        return lcp_nn.PCCN
-    else:
-        raise Exception(f"Unknown convolution {conv_name}")
+    conv = getattr(lcp_nn, backend_conv['layer'])
+    return lambda in_channels, out_channels, kernel_size: conv(in_channels, out_channels, kernel_size, **backend_conv)
 
 
 def get_search(search_name):
@@ -31,7 +26,7 @@ def get_search(search_name):
         raise Exception(f"Unknown convolution {search_name}")
 
 
-def get_network(model_name, in_channels, out_channels, ConvNet_name, Search_name):
+def get_network(model_name, in_channels, out_channels, backend_conv, backend_search):
     """Get a network by name.
 
     # Arguments
@@ -46,17 +41,7 @@ def get_network(model_name, in_channels, out_channels, ConvNet_name, Search_name
         Search_name: string.
             The name of the search algorithm.
     """
-    if model_name == "ConvPointSeg" or model_name == "ConvPoint":
-        from lightconvpoint.networks.convpoint import ConvPointSeg as Net
-    elif model_name == "ConvPointCls":
-        from lightconvpoint.networks.convpoint import ConvPointCls as Net
-    elif model_name == "KPConvSeg":
-        from lightconvpoint.networks.kpconv import KPConvSeg as Net
-    elif model_name == "KPConvCls":
-        from lightconvpoint.networks.kpconv import KPConvCls as Net
-    else:
-        raise Exception(f"Unknown model {model_name}")
 
-    return Net(
-        in_channels, out_channels, get_conv(ConvNet_name), get_search(Search_name)
+    return getattr(lcp_net, model_name)(
+        in_channels, out_channels, get_conv(backend_conv), get_search(backend_search)
     )

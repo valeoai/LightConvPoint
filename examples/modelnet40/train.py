@@ -25,6 +25,7 @@ from sacred.config import save_config_file
 SETTINGS.CAPTURE_MODE = "sys"  # for tqdm
 ex = Experiment("ModelNet40")
 ex.captured_out_filter = apply_backspaces_and_linefeeds  # for tqdm
+ex.add_config("modelnet40.yaml")
 ######
 
 
@@ -53,35 +54,12 @@ def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
-# Configuration
-@ex.config
-def my_config():
-    datasetdir = None
-    batchsize = None
-    device = None
-    npoints = None
-    num_iter_per_shape = None
-    model = None
-    backend_conv = None
-    backend_search = None
-    savedir = None
-    dataset = None
-    lr_start = None
-    epoch_nbr = None
-    milestones = None
-    threads = None
-    disable_tqdm = None
-
-
-######
-
-
 @ex.automain
 def main(_run, _config):
 
     print(_config)
-    savedir_root = _config["savedir"]
-    device = torch.device(_config["device"])
+    savedir_root = _config["training"]["savedir"]
+    device = torch.device(_config["misc"]["device"])
 
     # save the config file in the directory to restore the configuration
     os.makedirs(savedir_root, exist_ok=True)
@@ -95,11 +73,11 @@ def main(_run, _config):
 
     def network_function():
         return get_network(
-            _config["model"],
+            _config["network"]["model"],
             input_channels,
             N_LABELS,
-            _config["backend_conv"],
-            _config["backend_search"],
+            _config["network"]["backend_conv"],
+            _config["network"]["backend_search"],
         )
 
     net = network_function()
@@ -107,7 +85,7 @@ def main(_run, _config):
     print("Number of parameters", count_parameters(net))
 
     print("get the data path...", end="", flush=True)
-    rootdir = os.path.join(_config["datasetdir"], _config["dataset"])
+    rootdir = os.path.join(_config["dataset"]["datasetdir"], _config["dataset"]["dataset"])
     print("done")
 
     print("Getting train files...", end="", flush=True)
@@ -126,39 +104,39 @@ def main(_run, _config):
     ds = Dataset(
         train_data,
         train_labels,
-        pt_nbr=_config["npoints"],
+        pt_nbr=_config["dataset"]["npoints"],
         training=True,
         network_function=network_function,
     )
     train_loader = torch.utils.data.DataLoader(
         ds,
-        batch_size=_config["batchsize"],
+        batch_size=_config["training"]["batchsize"],
         shuffle=True,
-        num_workers=_config["threads"],
+        num_workers=_config["misc"]["threads"],
     )
     ds_test = Dataset(
         test_data,
         test_labels,
-        pt_nbr=_config["npoints"],
+        pt_nbr=_config["dataset"]["npoints"],
         training=False,
         network_function=network_function,
     )
     test_loader = torch.utils.data.DataLoader(
         ds_test,
-        batch_size=_config["batchsize"],
+        batch_size=_config["training"]["batchsize"],
         shuffle=False,
-        num_workers=_config["threads"],
+        num_workers=_config["misc"]["threads"],
     )
     print("done")
 
     print("Creating optimizer...", end="")
-    optimizer = torch.optim.Adam(net.parameters(), lr=_config["lr_start"])
+    optimizer = torch.optim.Adam(net.parameters(), lr=_config["training"]["lr_start"])
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, _config["milestones"], gamma=0.5
+        optimizer, _config["training"]["milestones"], gamma=0.5
     )
     print("done")
 
-    for epoch in range(_config["epoch_nbr"]):
+    for epoch in range(_config["training"]["epoch_nbr"]):
 
         net.train()
         error = 0
@@ -173,7 +151,7 @@ def main(_run, _config):
             train_loader,
             desc="Epoch " + str(epoch),
             ncols=130,
-            disable=_config["disable_tqdm"],
+            disable=_config["misc"]["disable_tqdm"],
         )
         for data in t:
 
@@ -227,7 +205,7 @@ def main(_run, _config):
                 test_loader,
                 desc="  Test " + str(epoch),
                 ncols=100,
-                disable=_config["disable_tqdm"],
+                disable=_config["misc"]["disable_tqdm"],
             )
             for data in t:
 

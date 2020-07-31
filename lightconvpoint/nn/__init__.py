@@ -1,6 +1,6 @@
 # Convolution classes
 from .conv_convpoint import ConvPoint
-from .conv_lcp import LCP
+from .conv_fkaconv import FKAConv
 from .conv_pccn import PCCN
 
 # Meta layer
@@ -24,7 +24,7 @@ from .dataset import with_indices_computation, with_indices_computation_rotation
 
 __all__ = [
     "ConvPoint",
-    "LCP",
+    "FKAConv",
     "PCCN",
     "Conv",
     "SearchConvPoint",
