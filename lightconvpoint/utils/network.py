@@ -26,7 +26,7 @@ def get_search(search_name):
         raise Exception(f"Unknown convolution {search_name}")
 
 
-def get_network(model_name, in_channels, out_channels, backend_conv, backend_search):
+def get_network(model_name, in_channels, out_channels, backend_conv, backend_search, **kwargs):
     """Get a network by name.
 
     # Arguments
@@ -43,5 +43,5 @@ def get_network(model_name, in_channels, out_channels, backend_conv, backend_sea
     """
 
     return getattr(lcp_net, model_name)(
-        in_channels, out_channels, get_conv(backend_conv), get_search(backend_search)
+        in_channels, out_channels, get_conv(backend_conv), get_search(backend_search), **kwargs
     )

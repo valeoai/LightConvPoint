@@ -23,7 +23,7 @@ class ConvPointCls(nn.Module):
             The search class to be used in the network.
     """
 
-    def __init__(self, in_channels, out_channels, ConvNet, Search):
+    def __init__(self, in_channels, out_channels, ConvNet, Search, **kwargs):
         super().__init__()
 
         # input 2048

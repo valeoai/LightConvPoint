@@ -41,7 +41,7 @@ class FKAConv(nn.Module):
             tensor.
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size, bias=True, dim=3, kernel_separation=False, **kwargs):
+    def __init__(self, in_channels, out_channels, kernel_size, bias=False, dim=3, kernel_separation=False, **kwargs):
         super().__init__()
 
         # parameters

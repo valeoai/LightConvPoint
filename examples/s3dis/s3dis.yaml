@@ -1,0 +1,43 @@
+# Dataset
+dataset:
+  datasetdir: /path_to_dataset_dir/
+  dataset: S3DIS_aligned_processed
+  npoints: 8192
+  area: 5
+  pillar_size: 2
+
+# Network
+network:
+  model: KPConvSeg
+  backend_conv:
+    layer: FKAConv
+    kernel_separation: false
+  backend_search: SearchQuantized
+  fusion_submodel: null
+  fusion_submodeldir: null
+
+# Training
+training:
+  savedir: path_to_save_directory
+  batchsize: 16
+  jitter: 0.4
+  scaling_param: 0
+  rgb: true
+  rgb_dropout: false
+  lr_start: 0.001
+  epoch_iter: 1000
+  epoch_nbr: 100
+  weights: false
+
+# Testing
+test:
+  step: 0.5
+  batchsize: 16
+  savepts: false
+  savepreds: false
+
+# misc
+misc:
+  device: cuda
+  disable_tqdm: false
+  threads: 4

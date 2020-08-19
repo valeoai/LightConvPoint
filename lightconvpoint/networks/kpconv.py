@@ -79,7 +79,7 @@ class KPConvCls(nn.Module):
             The search class to be used in the network.
     """
 
-    def __init__(self, in_channels, out_channels, ConvNet, Search):
+    def __init__(self, in_channels, out_channels, ConvNet, Search, **kwargs):
         super().__init__()
 
         pl = 64
@@ -123,7 +123,7 @@ class KPConvCls(nn.Module):
         if support_points is None:
             support_points = [None for _ in range(14)]
         if indices is None:
-            indices = [None for _ in range(14)]
+            indices = [None for _ in range(14)]        
 
         # ENCODER
         x0, _, ids00 = self.cv0(x, input_pts, input_pts, indices=indices[0])
@@ -176,7 +176,7 @@ class KPConvSeg(nn.Module):
             The search class to be used in the network.
     """
 
-    def __init__(self, in_channels, out_channels, ConvNet, Search):
+    def __init__(self, in_channels, out_channels, ConvNet, Search, **kwargs):
         super().__init__()
 
         pl = 64
