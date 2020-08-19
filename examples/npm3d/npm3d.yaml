@@ -1,24 +1,19 @@
 # Dataset
 dataset:
-  datasetdir: /path_to_dataset_dir/
-  dataset: S3DIS_aligned_processed
+  datasetdir: /datasets_local
+  dataset: NPM3D_processed/
   npoints: 8192
-  area: 5
-  pillar_size: 2
+  pillar_size: 8
 
 # Network
 network:
-  model: Fusion
+  model: KPConvSeg
   backend_conv:
     layer: FKAConv
     kernel_separation: false
   backend_search: SearchQuantized
-  fusion_submodel:
-    - KPConvSeg
-    - KPConvSeg
-  fusion_submodeldir:
-    - path_to_modeldir_rgb
-    - path_to_modeldir_noColor
+  fusion_submodel: null
+  fusion_submodeldir: null
 
 # Training
 training:
@@ -30,14 +25,14 @@ training:
   rgb_dropout: false
   lr_start: 0.001
   epoch_iter: 1000
-  epoch_nbr: 20
+  epoch_nbr: 100
   weights: false
 
 # Testing
 test:
-  step: 0.5
+  step: 2
   batchsize: 16
-  savepts: false
+  savepts: true
   savepreds: false
 
 # misc

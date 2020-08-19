@@ -32,7 +32,7 @@ If you use the FKAConv code or the LightConvPoint framework in your research, pl
 We provide examples classification and segmentation datasets:
 * ModelNet40
 * ShapeNet
-* S3DIS (*to be released*)
-* Semantic8 (*to be released*)
-* NPM3D (*to be released*)
+* S3DIS
+* Semantic8
+* NPM3D
 

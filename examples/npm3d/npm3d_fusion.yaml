@@ -1,10 +1,9 @@
 # Dataset
 dataset:
-  datasetdir: /path_to_dataset_dir/
-  dataset: S3DIS_aligned_processed
+  datasetdir: /datasets_local
+  dataset: NPM3D_processed/
   npoints: 8192
-  area: 5
-  pillar_size: 2
+  pillar_size: 8
 
 # Network
 network:
@@ -35,9 +34,9 @@ training:
 
 # Testing
 test:
-  step: 0.5
+  step: 2
   batchsize: 16
-  savepts: false
+  savepts: true
   savepreds: false
 
 # misc
