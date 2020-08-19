@@ -1,4 +1,4 @@
-# Experiments with LCP
+# Experiments with FKAConv with LighConvPoint framework
 
 All the parameters can be changed either in the JSON file associated with the example or with ```with``` statement from Sacred.
 For example, changing the save directory and the data directory would become:
@@ -71,8 +71,4 @@ python test.py -c save_directory_path/config.yaml
 
 #### Pretrained models
 
-Pretrained fusion models can be downloaded here (to be released).
-
-### NPM3D and Semantic8
-
-*To be released*
+Pretrained models are available for [S3DIS](https://github.com/valeoai/LightConvPoint/releases/download/v0.1/s3dis_KPConvSeg.zip), [Semantic8](https://github.com/valeoai/LightConvPoint/releases/download/v0.1/semantic8_KPConvSeg.zip) and [NPM3D](https://github.com/valeoai/LightConvPoint/releases/download/v0.1/npm3d_KPConvSeg.zip).
