@@ -1,0 +1,46 @@
+# Dataset
+dataset:
+  datasetdir: /datasets_local
+  dataset: SEMANTIC8_processed/
+  npoints: 8192
+  pillar_size: 8
+
+# Network
+network:
+  model: Fusion
+  backend_conv:
+    layer: FKAConv
+    kernel_separation: false
+  backend_search: SearchQuantized
+  fusion_submodel:
+    - KPConvSeg
+    - KPConvSeg
+  fusion_submodeldir:
+    - path_to_modeldir_rgb
+    - path_to_modeldir_noColor
+
+# Training
+training:
+  savedir: path_to_save_directory
+  batchsize: 16
+  jitter: 0.4
+  scaling_param: 0
+  rgb: true
+  rgb_dropout: false
+  lr_start: 0.001
+  epoch_iter: 1000
+  epoch_nbr: 100
+  weights: false
+
+# Testing
+test:
+  step: 2
+  batchsize: 16
+  savepts: true
+  savepreds: false
+
+# misc
+misc:
+  device: cuda
+  disable_tqdm: false
+  threads: 4
