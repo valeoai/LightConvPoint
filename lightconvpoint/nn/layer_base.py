@@ -16,6 +16,9 @@ class Conv(nn.Module):
             Add an activation layer integrated to the convolutional layer
         normalization: (optional) 1-D normalization layer.
             Add a normalization layer integrated to the convolutional layer
+        bn_activation_order: batch normalization and activation order
+            Define the operation order, default is BN->Activation ("bn_act"), can be
+            "act_bn" for Activation->BN
 
     # Forward arguments
         input: 3-D torch tensor.
@@ -47,12 +50,14 @@ class Conv(nn.Module):
 
     def __init__(
         self, network, search, activation=None, normalization=None,
-    ):
+        bn_activation_order="bn_act"
+        ):
         super().__init__()
         self.network = network
         self.search = search
         self.activation = activation
         self.norm = normalization
+        self.bn_activation_order = bn_activation_order
 
     def batched_index_select(self, input, dim, index):
         """Gather input with respect to the index tensor."""
@@ -93,12 +98,22 @@ class Conv(nn.Module):
                 features, pts, support_points.contiguous()
             )
 
-            # apply normalization
-            if self.norm is not None:
-                features = self.norm(features)
+            if self.bn_activation_order=="act_bn":
+                # apply activation
+                if self.activation is not None:
+                    features = self.activation(features)
 
-            # apply activation
-            if self.activation is not None:
-                features = self.activation(features)
+                # apply normalization
+                if self.norm is not None:
+                    features = self.norm(features)
+
+            else: #apply default BN->ACT
+                # apply normalization
+                if self.norm is not None:
+                    features = self.norm(features)
+
+                # apply activation
+                if self.activation is not None:
+                    features = self.activation(features)
 
             return features, support_points, indices

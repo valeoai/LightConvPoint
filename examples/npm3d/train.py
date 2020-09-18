@@ -13,6 +13,7 @@ import torch.utils.data
 from npm3d_dataset import DatasetTrainVal as Dataset
 import lightconvpoint.utils.metrics as metrics
 from lightconvpoint.utils import get_network
+from lightconvpoint.utils.misc import wblue, wgreen
 
 # SACRED
 from sacred import Experiment
@@ -25,25 +26,6 @@ ex = Experiment("NPM3D")
 ex.captured_out_filter = apply_backspaces_and_linefeeds  # for tqdm
 ex.add_config("npm3d.yaml")
 ######
-
-
-
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-
-# wrap blue / green
-def wblue(str):
-    return bcolors.OKBLUE+str+bcolors.ENDC
-def wgreen(str):
-    return bcolors.OKGREEN+str+bcolors.ENDC
-
 
 @ex.automain
 def main(_run, _config):

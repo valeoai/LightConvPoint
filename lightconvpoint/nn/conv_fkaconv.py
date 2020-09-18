@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from math import ceil
 
 class FKAConv(nn.Module):
     """FKAConv convolution layer.
@@ -55,9 +55,6 @@ class FKAConv(nn.Module):
         if kernel_separation:
             # equivalent to two kernels K1 * K2
             dm = int(ceil(self.out_channels / self.in_channels))
-            if in_channels%groups != 0:
-                print(f"Warning - inchannels {in_channels} not divisible by groups {groups} -> setting groups to 1")
-                groups=1
             self.cv = nn.Sequential(
                 nn.Conv2d(in_channels, dm*in_channels, (1, kernel_size), bias=bias, groups=self.in_channels),
                 nn.Conv2d(in_channels*dm, out_channels, (1, 1), bias=bias)

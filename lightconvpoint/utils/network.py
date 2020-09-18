@@ -20,10 +20,7 @@ def get_search(search_name):
         search_name: string.
             The name of the search algorithm.
     """
-    if search_name == "SearchQuantized":
-        return lcp_nn.SearchQuantized
-    else:
-        raise Exception(f"Unknown convolution {search_name}")
+    return getattr(lcp_nn, search_name)
 
 
 def get_network(model_name, in_channels, out_channels, backend_conv, backend_search, **kwargs):

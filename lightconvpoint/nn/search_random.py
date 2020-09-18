@@ -50,12 +50,15 @@ class SearchRandom:
             If they were provided as an input, return the same tensor.
     """
 
-    def __init__(self, K, stride=1, npoints=-1):
+    def __init__(self, K, stride=1, npoints=-1, dilation=1):
         self.K = K
         self.stride = stride
         self.npoints = npoints
+        self.dilation = 1
 
     def __call__(self, points, support_points=None):
+
+        search_K = self.K * self.dilation
 
         if support_points is None and self.stride == 1 and (self.npoints is None):
             support_points = points
@@ -68,7 +71,7 @@ class SearchRandom:
             else:
                 support_point_number = self.npoints
             support_points_ids, indices, _ = nearest_neighbors.random_pick_knn(
-                points.cpu().detach(), support_point_number, self.K
+                points.cpu().detach(), support_point_number, search_K
             )
 
             support_points_ids = support_points_ids.contiguous().long()
@@ -81,12 +84,16 @@ class SearchRandom:
                 points.transpose(1, 2), dim=1, index=support_points_ids
             ).transpose(1, 2)
 
-            return indices, support_points
         else:
             # support points are known, only compute the knn
             indices = nearest_neighbors.knn(
-                points.cpu().detach(), support_points.cpu().detach(), self.K
+                points.cpu().detach(), support_points.cpu().detach(), search_K
             )
             if points.is_cuda:
                 indices = indices.cuda()
-            return indices, support_points
+
+        if self.dilation > 1:
+            indices = indices[:,:, torch.randperm(indices.size(2))]
+            indices = indices[:,:,:self.K]
+
+        return indices, support_points

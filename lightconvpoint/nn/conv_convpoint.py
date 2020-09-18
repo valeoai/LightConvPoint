@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
-import math
+from math import ceil
 
 
 class ConvPoint(nn.Module):
@@ -43,7 +43,7 @@ class ConvPoint(nn.Module):
             The support points. If they were provided as an input, return the same tensor.
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size, bias=True, dim=3):
+    def __init__(self, in_channels, out_channels, kernel_size, bias=True, dim=3, kernel_separation=False, **kwargs):
         super().__init__()
 
         # parameters
@@ -53,18 +53,16 @@ class ConvPoint(nn.Module):
         self.has_bias = bias
         self.dim = dim
 
-        # Weight
-        self.weight = nn.Parameter(
-            torch.Tensor(in_channels * self.kernel_size, out_channels),
-            requires_grad=True,
-        )
-        bound = math.sqrt(3.0) * math.sqrt(2.0 / (in_channels + out_channels))
-        self.weight.data.uniform_(-bound, bound)
-
-        # bias
-        if self.has_bias:
-            self.bias = nn.Parameter(torch.Tensor(out_channels), requires_grad=True)
-            torch.nn.init.zeros_(self.bias.data)
+        # convolution kernel
+        if kernel_separation:
+            # equivalent to two kernels K1 * K2
+            dm = int(ceil(self.out_channels / self.in_channels))
+            self.cv = nn.Sequential(
+                nn.Conv2d(in_channels, dm*in_channels, (1, kernel_size), bias=bias, groups=self.in_channels),
+                nn.Conv2d(in_channels*dm, out_channels, (1, 1), bias=bias)
+            )
+        else:
+            self.cv = nn.Conv2d(in_channels, out_channels, (1, kernel_size), bias=bias)
 
         # centers
         center_data = np.zeros((self.dim, self.kernel_size))
@@ -104,18 +102,10 @@ class ConvPoint(nn.Module):
         pts = (pts.permute(0, 2, 3, 1).unsqueeze(4) - self.centers).contiguous()
         pts = pts.view(pts.size(0), pts.size(1), pts.size(2), -1)
         mat = self.projector(pts)
+
+        # compute features
         features = input.transpose(1, 2)
-        features = torch.matmul(features, mat)
+        features = torch.matmul(features, mat).transpose(1,2)
+        features = self.cv(features).squeeze(3)
 
-        # apply kernel weights
-        features = torch.matmul(
-            features.view(features.size(0), features.size(1), -1), self.weight
-        )
-        features = features / input.shape[3]
-
-        # apply bias
-        if self.has_bias:
-            features = features + self.bias
-
-        features = features.transpose(1, 2)
         return features, support_points

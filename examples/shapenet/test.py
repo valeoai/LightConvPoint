@@ -98,6 +98,7 @@ def main(_config):
         ]
     )
     net.to(device)
+    net.eval()
     print("Done")
 
     print("Creating dataloader...", end="", flush=True)

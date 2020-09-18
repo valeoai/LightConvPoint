@@ -276,7 +276,7 @@ class KPConvSeg(nn.Module):
         if x0d is not None:
             x0d = torch.cat([x0d, x0], dim=1)
             x0d = self.relu(self.bn0d(self.cv0d(x0d)))
-
+            x0d = self.drop(x0d)
             xout = self.fc(x0d)
 
             if return_features:
