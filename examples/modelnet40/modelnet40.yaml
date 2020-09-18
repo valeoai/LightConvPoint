@@ -1,7 +1,7 @@
 # Dataset
 dataset:
-    datasetdir: /path_to_dataset_dir/
-    dataset: ModelNet/modelnet40_ply_hdf5_2048
+    dir: /path_to_dataset_dir/
+    name: Modelnet40_ply_hdf5_2048
     npoints: 2048
 
 # Network

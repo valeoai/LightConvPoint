@@ -13,35 +13,13 @@ import yaml
 import torch
 import torch.utils.data
 
-from modelnet40_dataset import Modelnet40_dataset as Dataset
 import lightconvpoint.utils.metrics as metrics
 from lightconvpoint.utils import get_network
-
-
-def get_data(rootdir, files):
-
-    train_filenames = []
-    for line in open(os.path.join(rootdir, files)):
-        line = line.split("\n")[0]
-        line = os.path.basename(line)
-        train_filenames.append(os.path.join(rootdir, line))
-
-    data = []
-    labels = []
-    for filename in train_filenames:
-        f = h5py.File(filename, "r")
-        data.append(f["data"])
-        labels.append(f["label"])
-
-    data = np.concatenate(data, axis=0)
-    labels = np.concatenate(labels, axis=0)
-
-    return data, labels
-
+from lightconvpoint.datasets.modelnet import Modelnet40_normal_resampled, Modelnet40_ply_hdf5_2048
+import lightconvpoint.utils.transformations as lcp_transfo
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
 
 def main(_config):
 
@@ -75,24 +53,29 @@ def main(_config):
         ]
     )
     net.to(device)
+    net.eval()
+    print("Number of parameters", count_parameters(net))
     print("Done")
 
     print("get the data path...", end="", flush=True)
-    rootdir = os.path.join(_config["dataset"]["datasetdir"], _config["dataset"]["dataset"])
+    rootdir = _config["dataset"]["dir"]
     print("done")
 
-    print("Getting test files...", end="", flush=True)
-    test_data, test_labels = get_data(rootdir, "test_files.txt")
-    print("done - ", test_data.shape[0], " test files")
+    test_transformations = [
+        lcp_transfo.FixedSubSample(_config["dataset"]["npoints"])
+    ]
 
     print("Creating dataloaders...", end="", flush=True)
+    if _config['dataset']['name'] == "Modelnet40_normal_resampled":
+        Dataset = Modelnet40_normal_resampled
+    elif _config['dataset']['name'] == "Modelnet40_ply_hdf5_2048":
+        Dataset = Modelnet40_ply_hdf5_2048
     ds_test = Dataset(
-        test_data,
-        test_labels,
-        pt_nbr=_config["dataset"]["npoints"],
-        training=False,
+        rootdir,
+        split='test',
         network_function=network_function,
-        num_iter_per_shape=_config["test"]["num_iter_per_shape"],
+        transformations_points=test_transformations,
+        iter_per_shape=_config['test']['num_iter_per_shape'],
     )
     test_loader = torch.utils.data.DataLoader(
         ds_test,
@@ -102,7 +85,26 @@ def main(_config):
     )
     print("done")
 
-    net.eval()
+
+    def get_data(data):
+        
+        pts = data["pts"]
+        features = data["features"]
+        targets = data["target"]
+        index = data["index"]
+        net_ids = data["net_indices"]
+        net_support = data["net_support"]
+
+        features = features.to(device)
+        pts = pts.to(device)
+        targets = targets.to(device)
+        index = index.to(device)
+        for i in range(len(net_ids)):
+            net_ids[i] = net_ids[i].to(device)
+        for i in range(len(net_support)):
+            net_support[i] = net_support[i].to(device)
+
+        return pts, features, targets, index, net_ids, net_support
 
     cm = np.zeros((N_LABELS, N_LABELS))
     test_oa = "0"
@@ -110,24 +112,11 @@ def main(_config):
     test_aiou = "0"
     with torch.no_grad():
 
-        predictions = np.zeros((test_data.shape[0], N_LABELS), dtype=float)
-        t = tqdm(test_loader, desc="Test", ncols=100, disable=_config["misc"]["disable_tqdm"])
+        predictions = np.zeros((ds_test.size(), N_LABELS), dtype=float)
+        t = tqdm(test_loader, desc="Test", ncols=100)
         for data in t:
 
-            pts = data["pts"]
-            features = data["features"]
-            targets = data["target"]
-            indices = data["index"]
-            net_ids = data["net_indices"]
-            net_support = data["net_support"]
-
-            features = features.to(device)
-            pts = pts.to(device)
-            targets = targets.to(device)
-            for i in range(len(net_ids)):
-                net_ids[i] = net_ids[i].to(device)
-            for i in range(len(net_support)):
-                net_support[i] = net_support[i].to(device)
+            pts, features, _, indices, net_ids, net_support = get_data(data)
 
             outputs = net(features, pts, support_points=net_support, indices=net_ids)
 
@@ -138,7 +127,7 @@ def main(_config):
                 predictions[indices[i].item()] += outputs_np[i]
 
         predictions = np.argmax(predictions, axis=1)
-        cm = confusion_matrix(test_labels, predictions, labels=list(range(N_LABELS)))
+        cm = confusion_matrix(ds_test.get_targets(), predictions, labels=list(range(N_LABELS)))
 
         # scores
         test_oa = f"{metrics.stats_overall_accuracy(cm)*100:.5f}"

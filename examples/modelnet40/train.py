@@ -12,9 +12,10 @@ import torch
 import torch.nn.functional as F
 import torch.utils.data
 
-from modelnet40_dataset import Modelnet40_dataset as Dataset
 import lightconvpoint.utils.metrics as metrics
 from lightconvpoint.utils import get_network
+from lightconvpoint.datasets.modelnet import Modelnet40_normal_resampled, Modelnet40_ply_hdf5_2048
+import lightconvpoint.utils.transformations as lcp_transfo
 
 # SACRED
 from sacred import Experiment
@@ -27,28 +28,6 @@ ex = Experiment("ModelNet40")
 ex.captured_out_filter = apply_backspaces_and_linefeeds  # for tqdm
 ex.add_config("modelnet40.yaml")
 ######
-
-
-def get_data(rootdir, files):
-
-    train_filenames = []
-    for line in open(os.path.join(rootdir, files)):
-        line = line.split("\n")[0]
-        line = os.path.basename(line)
-        train_filenames.append(os.path.join(rootdir, line))
-
-    data = []
-    labels = []
-    for filename in train_filenames:
-        f = h5py.File(filename, "r")
-        data.append(f["data"])
-        labels.append(f["label"])
-
-    data = np.concatenate(data, axis=0)
-    labels = np.concatenate(labels, axis=0)
-
-    return data, labels
-
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -85,28 +64,28 @@ def main(_run, _config):
     print("Number of parameters", count_parameters(net))
 
     print("get the data path...", end="", flush=True)
-    rootdir = os.path.join(_config["dataset"]["datasetdir"], _config["dataset"]["dataset"])
+    rootdir = os.path.join(_config["dataset"]["dir"])
     print("done")
 
-    print("Getting train files...", end="", flush=True)
-    train_data, train_labels = get_data(rootdir, "train_files.txt")
-    print("Getting test files...", end="", flush=True)
-    test_data, test_labels = get_data(rootdir, "test_files.txt")
-    print(
-        "done - ",
-        train_data.shape[0],
-        " train files - ",
-        test_data.shape[0],
-        " test files",
-    )
+    training_transformations = [
+        lcp_transfo.RandomSubSample(_config["dataset"]["npoints"]),
+        lcp_transfo.NormalPerturbation(sigma=0.01)
+    ]
+    test_transformations = [
+        lcp_transfo.RandomSubSample(_config["dataset"]["npoints"]),
+    ]
+
 
     print("Creating dataloaders...", end="", flush=True)
+    if _config['dataset']['name'] == "Modelnet40_normal_resampled":
+        Dataset = Modelnet40_normal_resampled
+    elif _config['dataset']['name'] == "Modelnet40_ply_hdf5_2048":
+        Dataset = Modelnet40_ply_hdf5_2048
     ds = Dataset(
-        train_data,
-        train_labels,
-        pt_nbr=_config["dataset"]["npoints"],
-        training=True,
+        rootdir,
+        split='training',
         network_function=network_function,
+        transformations_points=training_transformations,
     )
     train_loader = torch.utils.data.DataLoader(
         ds,
@@ -115,11 +94,10 @@ def main(_run, _config):
         num_workers=_config["misc"]["threads"],
     )
     ds_test = Dataset(
-        test_data,
-        test_labels,
-        pt_nbr=_config["dataset"]["npoints"],
-        training=False,
+        rootdir,
+        split='test',
         network_function=network_function,
+        transformations_points=test_transformations,
     )
     test_loader = torch.utils.data.DataLoader(
         ds_test,
@@ -135,6 +113,24 @@ def main(_run, _config):
         optimizer, _config["training"]["milestones"], gamma=0.5
     )
     print("done")
+
+    def get_data(data):
+        
+        pts = data["pts"]
+        features = data["features"]
+        targets = data["target"]
+        net_ids = data["net_indices"]
+        net_support = data["net_support"]
+
+        features = features.to(device)
+        pts = pts.to(device)
+        targets = targets.to(device)
+        for i in range(len(net_ids)):
+            net_ids[i] = net_ids[i].to(device)
+        for i in range(len(net_support)):
+            net_support[i] = net_support[i].to(device)
+
+        return pts, features, targets, net_ids, net_support
 
     for epoch in range(_config["training"]["epoch_nbr"]):
 
@@ -155,19 +151,7 @@ def main(_run, _config):
         )
         for data in t:
 
-            pts = data["pts"]
-            features = data["features"]
-            targets = data["target"]
-            net_ids = data["net_indices"]
-            net_support = data["net_support"]
-
-            features = features.to(device)
-            pts = pts.to(device)
-            targets = targets.to(device)
-            for i in range(len(net_ids)):
-                net_ids[i] = net_ids[i].to(device)
-            for i in range(len(net_support)):
-                net_support[i] = net_support[i].to(device)
+            pts, features, targets, net_ids, net_support = get_data(data)
 
             optimizer.zero_grad()
             outputs = net(features, pts, support_points=net_support, indices=net_ids)
@@ -209,19 +193,7 @@ def main(_run, _config):
             )
             for data in t:
 
-                pts = data["pts"]
-                features = data["features"]
-                targets = data["target"]
-                net_ids = data["net_indices"]
-                net_support = data["net_support"]
-
-                features = features.to(device)
-                pts = pts.to(device)
-                targets = targets.to(device)
-                for i in range(len(net_ids)):
-                    net_ids[i] = net_ids[i].to(device)
-                for i in range(len(net_support)):
-                    net_support[i] = net_support[i].to(device)
+                pts, features, targets, net_ids, net_support = get_data(data)
 
                 outputs = net(
                     features, pts, support_points=net_support, indices=net_ids
