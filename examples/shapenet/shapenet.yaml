@@ -1,7 +1,7 @@
 # Dataset
 dataset:
-    datasetdir: /path_to_dataset_dir/
-    dataset: shapenet_partseg/raw_data_hdf5
+    dir: /path_to_dataset_dir/shapenet_partseg/raw_data_hdf5
+    name: ShapeNet
     npoints: 2048
 
 # Network

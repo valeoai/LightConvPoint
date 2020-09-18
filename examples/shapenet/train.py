@@ -1,7 +1,8 @@
 import lightconvpoint.utils.metrics as metrics
 import lightconvpoint.utils.data_utils as data_utils
 from lightconvpoint.utils import get_network
-from shapenet_dataset import ShapeNet_dataset as Dataset
+from lightconvpoint.datasets.shapenet import ShapeNet_dataset as Dataset
+import lightconvpoint.utils.transformations as lcp_transfo
 
 # other imports
 import numpy as np
@@ -44,79 +45,10 @@ def main(_run, _config):
     save_config_file(eval(str(_config)), os.path.join(savedir_root, "config.yaml"))
 
     print("get the data path...", end="", flush=True)
-    rootdir = os.path.join(_config["dataset"]["datasetdir"], _config["dataset"]["dataset"])
+    rootdir = _config["dataset"]["dir"]
     print("done")
 
-    filelist_train = os.path.join(rootdir, "train_files.txt")
-    filelist_val = os.path.join(rootdir, "val_files.txt")
-    filelist_test = os.path.join(rootdir, "test_files.txt")
-
     N_CLASSES = 50
-
-    shapenet_labels = [
-        ["Airplane", 4],
-        ["Bag", 2],
-        ["Cap", 2],
-        ["Car", 4],
-        ["Chair", 4],
-        ["Earphone", 3],
-        ["Guitar", 3],
-        ["Knife", 2],
-        ["Lamp", 4],
-        ["Laptop", 2],
-        ["Motorbike", 6],
-        ["Mug", 2],
-        ["Pistol", 3],
-        ["Rocket", 3],
-        ["Skateboard", 3],
-        ["Table", 3],
-    ]
-    category_range = []
-    count = 0
-    for element in shapenet_labels:
-        part_start = count
-        count += element[1]
-        part_end = count
-        category_range.append([part_start, part_end])
-
-    # Prepare inputs
-    print("Preparing datasets...", end="", flush=True)
-    (
-        data_train,
-        labels_shape_train,
-        data_num_train,
-        labels_pts_train,
-        _,
-    ) = data_utils.load_seg(filelist_train)
-    data_val, labels_shape_val, data_num_val, labels_pts_val, _ = data_utils.load_seg(
-        filelist_val
-    )
-    (
-        data_test,
-        labels_shape_test,
-        data_num_test,
-        labels_pts_test,
-        _,
-    ) = data_utils.load_seg(filelist_test)
-    data_train = np.concatenate([data_train, data_val], axis=0)
-    labels_shape_train = np.concatenate([labels_shape_train, labels_shape_val], axis=0)
-    data_num_train = np.concatenate([data_num_train, data_num_val], axis=0)
-    labels_pts_train = np.concatenate([labels_pts_train, labels_pts_val], axis=0)
-    print("Done", data_train.shape)
-
-    # define weights
-    print("Computing weights...", end="", flush=True)
-    frequences = [0 for i in range(len(shapenet_labels))]
-    for i in range(len(shapenet_labels)):
-        frequences[i] += (labels_shape_train == i).sum()
-    for i in range(len(shapenet_labels)):
-        frequences[i] /= shapenet_labels[i][1]
-    frequences = np.array(frequences)
-    frequences = frequences.mean() / frequences
-    repeat_factor = [sh[1] for sh in shapenet_labels]
-    frequences = np.repeat(frequences, repeat_factor)
-    weights = torch.from_numpy(frequences).float().to(device)
-    print("Done")
 
     print("Creating network...", end="", flush=True)
 
@@ -134,15 +66,22 @@ def main(_run, _config):
     network_parameters = count_parameters(net)
     print("parameters", network_parameters)
 
+    training_transformations = [
+        lcp_transfo.UnitBallNormalize(),
+        lcp_transfo.RandomSubSample(_config["dataset"]["npoints"]),
+        lcp_transfo.NormalPerturbation(sigma=0.001)
+    ]
+    test_transformations = [
+        lcp_transfo.UnitBallNormalize(),
+        lcp_transfo.RandomSubSample(_config["dataset"]["npoints"]),
+    ]
+
     print("Creating dataloader...", end="", flush=True)
     ds = Dataset(
-        data_train,
-        data_num_train,
-        labels_pts_train,
-        labels_shape_train,
-        npoints=_config["dataset"]["npoints"],
-        training=True,
+        rootdir,
+        'training',
         network_function=network_function,
+        transformations_points=training_transformations
     )
     train_loader = torch.utils.data.DataLoader(
         ds,
@@ -151,13 +90,10 @@ def main(_run, _config):
         num_workers=_config["misc"]["threads"],
     )
     ds_test = Dataset(
-        data_test,
-        data_num_test,
-        labels_pts_test,
-        labels_shape_test,
-        npoints=_config["dataset"]["npoints"],
-        training=False,
+        rootdir,
+        'test',
         network_function=network_function,
+        transformations_points=test_transformations
     )
     test_loader = torch.utils.data.DataLoader(
         ds_test,
@@ -165,6 +101,12 @@ def main(_run, _config):
         shuffle=False,
         num_workers=_config["misc"]["threads"],
     )
+    print("Done")
+
+
+    # define weights
+    print("Computing weights...", end="", flush=True)
+    weights = torch.from_numpy(ds.get_weights()).float().to(device)
     print("Done")
 
     print("Creating optimizer...", end="", flush=True)
@@ -177,6 +119,23 @@ def main(_run, _config):
         last_epoch=epoch_start - 1,
     )
     print("Done")
+
+
+    def get_data(data):
+
+        pts = data["pts"].to(device)
+        features = data["features"].to(device)
+        seg = data["seg"].to(device)
+        labels = data["label"]
+        net_ids = data["net_indices"]
+        net_pts = data["net_support"]
+        for i in range(len(net_ids)):
+            net_ids[i] = net_ids[i].to(device)
+        for i in range(len(net_pts)):
+            net_pts[i] = net_pts[i].to(device)
+
+        return pts, features, seg, labels, net_ids, net_pts
+
 
     # create the log file
     for epoch in range(epoch_start, _config["training"]["epoch_nbr"]):
@@ -192,21 +151,11 @@ def main(_run, _config):
         )
         for data in t:
 
-            pts = data["pts"].to(device)
-            features = data["features"].to(device)
-            seg = data["seg"].to(device)
-            labels = data["label"]
-            net_ids = data["net_indices"]
-            net_pts = data["net_support"]
-            for i in range(len(net_ids)):
-                net_ids[i] = net_ids[i].to(device)
-            for i in range(len(net_pts)):
-                net_pts[i] = net_pts[i].to(device)
+            pts, features, seg, labels, net_ids, net_pts = get_data(data)
 
             optimizer.zero_grad()
             outputs = net(features, pts, support_points=net_pts, indices=net_ids)
             loss = F.cross_entropy(outputs, seg, weight=weights)
-
             loss.backward()
             optimizer.step()
 
@@ -214,7 +163,7 @@ def main(_run, _config):
             for i in range(pts.size(0)):
                 # get the number of part for the shape
                 object_label = labels[i]
-                part_start, part_end = category_range[object_label]
+                part_start, part_end = ds.category_range[object_label]
 
                 outputs_np[i, :part_start] = -1e7
                 outputs_np[i, part_end:] = -1e7
@@ -244,16 +193,8 @@ def main(_run, _config):
                 disable=_config["misc"]["disable_tqdm"],
             )
             for data in t:
-                pts = data["pts"].to(device)
-                features = data["features"].to(device)
-                seg = data["seg"].to(device)
-                labels = data["label"]
-                net_ids = data["net_indices"]
-                net_pts = data["net_support"]
-                for i in range(len(net_ids)):
-                    net_ids[i] = net_ids[i].to(device)
-                for i in range(len(net_pts)):
-                    net_pts[i] = net_pts[i].to(device)
+
+                pts, features, seg, labels, net_ids, net_pts = get_data(data)
 
                 outputs = net(features, pts, support_points=net_pts, indices=net_ids)
                 loss = 0
@@ -261,7 +202,7 @@ def main(_run, _config):
                 for i in range(pts.size(0)):
                     # get the number of part for the shape
                     object_label = labels[i]
-                    part_start, part_end = category_range[object_label]
+                    part_start, part_end = ds_test.category_range[object_label]
 
                     outputs_ = (outputs[i, part_start:part_end]).unsqueeze(0)
                     seg_ = (seg[i] - part_start).unsqueeze(0)
@@ -274,7 +215,7 @@ def main(_run, _config):
                 for i in range(pts.size(0)):
                     # get the number of part for the shape
                     object_label = labels[i]
-                    part_start, part_end = category_range[object_label]
+                    part_start, part_end = ds_test.category_range[object_label]
 
                     outputs_np[i, :part_start] = -1e7
                     outputs_np[i, part_end:] = -1e7

@@ -68,10 +68,12 @@ def main(_run, _config):
     print("done")
 
     training_transformations = [
+        lcp_transfo.UnitBallNormalize(),
         lcp_transfo.RandomSubSample(_config["dataset"]["npoints"]),
         lcp_transfo.NormalPerturbation(sigma=0.01)
     ]
     test_transformations = [
+        lcp_transfo.UnitBallNormalize(),
         lcp_transfo.RandomSubSample(_config["dataset"]["npoints"]),
     ]
 

@@ -47,7 +47,7 @@ class Modelnet40_ply_hdf5_2048(torch.utils.data.Dataset):
                     rootdir,
                     split='training',
                     network_function=None,
-                    transformations_points=None,
+                    transformations_points=[],
                     iter_per_shape=1):
         """Init function."""
         self.rootdir = rootdir
@@ -77,9 +77,8 @@ class Modelnet40_ply_hdf5_2048(torch.utils.data.Dataset):
         pts = self.data[index_]
         target = self.labels[index_]
 
-        if self.t_points is not None:
-            for t in self.t_points:
-                pts = t(pts)
+        for t in self.t_points:
+            pts = t(pts)
 
         # Switch y and z dimensions
         pts = pts[:, [0, 2, 1]]

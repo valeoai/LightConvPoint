@@ -11,9 +11,10 @@ import torch.utils.data
 
 import lightconvpoint.utils.data_utils as data_utils
 import lightconvpoint.utils.metrics as metrics
-from shapenet_dataset import ShapeNet_dataset as Dataset
 from lightconvpoint.utils import get_network
 from lightconvpoint.knn import knn
+from lightconvpoint.datasets.shapenet import ShapeNet_dataset as Dataset
+import lightconvpoint.utils.transformations as lcp_transfo
 
 
 def nearest_correspondance(pts_src, pts_dest, data_src, K=1):
@@ -36,49 +37,10 @@ def main(_config):
     device = torch.device(_config["misc"]["device"])
 
     print("get the data path...", end="", flush=True)
-    rootdir = os.path.join(_config["dataset"]["datasetdir"], _config["dataset"]["dataset"])
+    rootdir = _config["dataset"]["dir"]
     print("done")
 
-    filelist_test = os.path.join(rootdir, "test_files.txt")
-
     N_CLASSES = 50
-
-    shapenet_labels = [
-        ["Airplane", 4],
-        ["Bag", 2],
-        ["Cap", 2],
-        ["Car", 4],
-        ["Chair", 4],
-        ["Earphone", 3],
-        ["Guitar", 3],
-        ["Knife", 2],
-        ["Lamp", 4],
-        ["Laptop", 2],
-        ["Motorbike", 6],
-        ["Mug", 2],
-        ["Pistol", 3],
-        ["Rocket", 3],
-        ["Skateboard", 3],
-        ["Table", 3],
-    ]
-    category_range = []
-    count = 0
-    for element in shapenet_labels:
-        part_start = count
-        count += element[1]
-        part_end = count
-        category_range.append([part_start, part_end])
-
-    # Prepare inputs
-    print("Preparing datasets...", end="", flush=True)
-    (
-        data_test,
-        labels_shape_test,
-        data_num_test,
-        labels_pts_test,
-        _,
-    ) = data_utils.load_seg(filelist_test)
-    print("Done", data_test.shape)
 
     print("Creating network...", end="", flush=True)
 
@@ -102,15 +64,17 @@ def main(_config):
     print("Done")
 
     print("Creating dataloader...", end="", flush=True)
+    test_transformations = [
+        lcp_transfo.UnitBallNormalize(),
+        lcp_transfo.RandomSubSample(_config["dataset"]["npoints"]),
+    ]
     ds_test = Dataset(
-        data_test,
-        data_num_test,
-        labels_pts_test,
-        labels_shape_test,
-        npoints=_config["dataset"]["npoints"],
-        training=False,
+        rootdir,
+        'test',
         network_function=network_function,
-        num_iter_per_shape=_config["test"]["num_iter_per_shape"],
+        transformations_points=test_transformations,
+        # iter_per_shape=_config["test"]["num_iter_per_shape"]
+        iter_per_shape=1
     )
     test_loader = torch.utils.data.DataLoader(
         ds_test,
@@ -121,8 +85,8 @@ def main(_config):
     print("Done")
 
     # per shape results
-    results = torch.zeros(data_test.shape[0], data_test.shape[1], N_CLASSES)
-    results_count = torch.zeros(data_test.shape[0], data_test.shape[1])
+    results = torch.zeros(ds_test.data.shape[0], ds_test.data.shape[1], N_CLASSES)
+    results_count = torch.zeros(ds_test.data.shape[0], ds_test.data.shape[1])
 
     with torch.no_grad():
         cm = np.zeros((N_CLASSES, N_CLASSES))
@@ -149,7 +113,7 @@ def main(_config):
             for b_id in range(outputs.shape[0]):
 
                 object_label = labels[i]
-                part_start, part_end = category_range[object_label]
+                part_start, part_end = ds_test.category_range[object_label]
                 outputs[i, :part_start] = -1e7
                 outputs[i, part_end:] = -1e7
 
@@ -174,15 +138,15 @@ def main(_config):
             cm += cm_
 
     Confs = []
-    for s_id in tqdm(range(data_test.shape[0]), ncols=100, desc="Conf. matrices"):
+    for s_id in tqdm(range(ds_test.size()), ncols=100, desc="Conf. matrices"):
 
-        shape_label = labels_shape_test[s_id]
+        shape_label = ds_test.labels_shape[s_id]
         # get the number of points
-        npts = data_num_test[s_id]
+        npts = ds_test.data_num[s_id]
 
         # get the gt and estimate the number of parts
-        label_gt = labels_pts_test[s_id, :npts]
-        part_start, part_end = category_range[shape_label]
+        label_gt = ds_test.labels_pts[s_id, :npts]
+        part_start, part_end = ds_test.category_range[shape_label]
         label_gt -= part_start
 
         # get the results
@@ -192,8 +156,8 @@ def main(_config):
         mask = results_count[s_id, :npts].cpu().numpy() == 1
         if np.logical_not(mask).sum() > 0:
             res_shape_mask = res_shape[mask]
-            pts_src = torch.from_numpy(data_test[s_id, :npts][mask]).transpose(0, 1)
-            pts_dest = data_test[s_id, :npts]
+            pts_src = torch.from_numpy(ds_test.data[s_id, :npts][mask]).transpose(0, 1)
+            pts_dest = ds_test.data[s_id, :npts]
             pts_dest = pts_dest[np.logical_not(mask)]
             pts_dest = torch.from_numpy(pts_dest).transpose(0, 1)
             res_shape_unseen = nearest_correspondance(
@@ -212,14 +176,14 @@ def main(_config):
     # compute IoU per shape
     print("Computing IoUs...", end="", flush=True)
     IoUs_per_shape = []
-    for i in range(labels_shape_test.shape[0]):
+    for i in range(ds_test.labels_shape.shape[0]):
         IoUs_per_shape.append(metrics.stats_iou_per_class(Confs[i])[0])
     IoUs_per_shape = np.array(IoUs_per_shape)
 
     # compute object category average
-    obj_IoUs = np.zeros(len(shapenet_labels))
-    for i in range(len(shapenet_labels)):
-        obj_IoUs[i] = IoUs_per_shape[labels_shape_test == i].mean()
+    obj_IoUs = np.zeros(len(ds_test.label_names))
+    for i in range(len(ds_test.label_names)):
+        obj_IoUs[i] = IoUs_per_shape[ds_test.labels_shape == i].mean()
     print("Done")
 
     print(
