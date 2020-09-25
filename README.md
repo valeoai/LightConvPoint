@@ -12,13 +12,14 @@ The paper is available at arxiv: [https://arxiv.org/abs/2004.04462](https://arxi
 If you use the FKAConv code or the LightConvPoint framework in your research, please consider citing:
 
 ```
-@article{boulch2020lightconvpoint,
+@inproceedings{boulch2020fka,
   title={{FKAConv: Feature-Kernel Alignment for Point Cloud Convolution}},
   author={Boulch, Alexandre and Puy, Gilles and Marlet, Renaud},
-  journal={arXiv preprint arXiv:2004.04462},
+  booktitle={15th Asian Conference on Computer Vision (ACCV 2020)},
   year={2020}
 }
 ```
+
 
 ## Ressources
 
