@@ -162,6 +162,7 @@ if __name__ == "__main__":
     # get the arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", "-c", help="Path to config file in savedir")
+    parser.add_argument("--step", "-s", default=2, help="Path to config file in savedir")
     args = parser.parse_args()
 
     # update the base directory
@@ -172,6 +173,8 @@ if __name__ == "__main__":
     # load the configuration
     config = yaml.load(open(args.config))
     config["training"]["savedir"] = savedir
+
+    config["test"]["step"] = args.step
 
     # call the main function
     main(config)
