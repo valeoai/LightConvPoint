@@ -56,6 +56,8 @@ def quantized_pick_knn(points: torch.Tensor, nqueries: int, K: int):
         b_selected_points = []
         count = 0
 
+        x_ids = torch.arange(x.shape[0])
+
         while(True):
             batch_x = torch.zeros(x.shape[0], device=points.device, dtype=torch.long)
 
@@ -64,16 +66,17 @@ def quantized_pick_knn(points: torch.Tensor, nqueries: int, K: int):
 
             if count + unique_indices.shape[0] >= nqueries:
                 unique_indices = unique_indices[torch.randperm(unique_indices.shape[0])]
-                b_selected_points.append(unique_indices[:nqueries-count])
+                b_selected_points.append(x_ids[unique_indices[:nqueries-count]])
                 count += unique_indices.shape[0]
                 break
 
-            b_selected_points.append(unique_indices)
+            b_selected_points.append(x_ids[unique_indices])
             count += unique_indices.shape[0]
 
             select = torch.ones(x.shape[0], dtype=torch.bool, device=x.device)
             select[unique_indices] = False
             x = x[select]
+            x_ids = x_ids[select]
             voxel_size /= 2
 
         b_selected_points = torch.cat(b_selected_points, dim=0)
