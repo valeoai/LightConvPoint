@@ -1,15 +1,127 @@
+
 import torch
 import numpy as np
+import lightconvpoint.nn
 import os
 import random
+from torchvision import transforms
+from PIL import Image
+import time
 from tqdm import *
+from plyfile import PlyData, PlyElement
 from lightconvpoint.nn import with_indices_computation_rotation
+
+import glob
+import pickle
 from .helper_ply import read_ply
 
-from .s3dis_legacy import S3DIS_Pillar_Test, S3DIS_Pillar_TrainVal
+
+class S3DIS_Pillar_TrainVal():
+
+    def __init__ (self,
+                    dataset_dir,
+                    config,
+                    split="training",
+                    verbose=False,
+                    network_function=None,
+                    transformations_data=None,
+                    transformations_points=None,
+                    transformations_features=None):
 
 
-class S3DIS_Pillar():
+        self.split = split
+        self.dataset_dir = dataset_dir
+        self.cfg = config
+        self.verbose = verbose
+        self.t_data = transformations_data
+        self.t_points = transformations_points
+        self.t_features = transformations_features
+
+        self.filelist = []
+        for area_idx in range(1 ,7):
+            folder = os.path.join(self.dataset_dir, f"Area_{area_idx}")
+            if self.split == 'validation' and config['dataset']['val_area']==area_idx:
+                self.filelist = [os.path.join(f"Area_{area_idx}", dataset) for dataset in os.listdir(folder)]
+            elif self.split == 'training' and config['dataset']['val_area']!=area_idx:
+                self.filelist = self.filelist + [os.path.join(f"Area_{area_idx}", dataset) for dataset in os.listdir(folder)]
+        self.filelist.sort()
+
+
+        if network_function is not None:
+            self.net = network_function()
+        else:
+            self.net = None
+
+    @with_indices_computation_rotation
+    def __getitem__(self, index):
+
+        index = random.randint(0, len(self.filelist)-1)
+        filename_data = os.path.join(self.dataset_dir, self.filelist[index], 'xyzrgb.npy')
+        filename_labels = os.path.join(self.dataset_dir, self.filelist[index], 'label.npy')
+        data = np.load(filename_data).astype(np.float32)
+        labels = np.load(filename_labels).astype(np.float32).flatten()
+        labels = np.expand_dims(labels, axis=1)
+        data = np.concatenate([data, labels], axis=1)
+
+        # apply transformations on data
+        if self.t_data is not None:
+            for t in self.t_data:
+                data = t(data)
+
+        # get the features, labels and points
+        fts = data[:,3:6]
+        lbs = data[:, 6].astype(int)
+        pts = data[:, :3]
+
+        # apply transformations on points
+        if self.t_points is not None:
+            for t in self.t_points:
+                pts = t(pts)
+
+        # apply transformations on features
+        fts = fts / 255
+        if self.t_features is not None:
+            for t in self.t_features:
+                fts = t(fts)
+
+
+        pts = torch.from_numpy(pts).float()
+        fts = torch.from_numpy(fts).float()
+        lbs = torch.from_numpy(lbs).long()
+
+        pts = pts.transpose(0,1)
+        fts = fts.transpose(0,1)
+
+        return_dict = {
+            "pts": pts,
+            "features": fts,
+            "target": lbs,
+        }
+
+        return return_dict
+
+    def __len__(self):
+        if self.split == "training":
+            return self.cfg['training']['training_steps'] * self.cfg['training']['batch_size']
+        else:
+            return self.cfg['training']['validation_steps'] * self.cfg['training']['batch_size']
+
+
+    @staticmethod
+    def get_class_weights(return_torch_tensor=True):
+        # pre-calculate the number of points in each category
+        # from RandLaNet directory
+        num_per_class = np.array([3370714, 2856755, 4919229, 318158, 375640, 478001, 974733,
+                                      650464, 791496, 88727, 1284130, 229758, 2272837], dtype=np.int32)
+        weight = num_per_class / float(sum(num_per_class))
+        ce_label_weight = 1 / (weight + 0.02)
+        if return_torch_tensor:
+            return torch.tensor(ce_label_weight, dtype=torch.float)
+        else:
+            return ce_label_weight
+
+
+class S3DIS_Pillar_Test():
 
     def compute_mask(self, pt, bs):
         # build the mask
@@ -40,7 +152,7 @@ class S3DIS_Pillar():
         self.filelist = []
         for area_idx in range(1 ,7):
             folder = os.path.join(self.dataset_dir, f"Area_{area_idx}")
-            if (self.split in ['validation', 'test']) and config['dataset']['val_area']==area_idx:
+            if self.split == 'validation' and config['dataset']['val_area']==area_idx:
                 self.filelist = [os.path.join(f"Area_{area_idx}", dataset) for dataset in os.listdir(folder)]
             elif self.split == 'training' and config['dataset']['val_area']!=area_idx:
                 self.filelist = self.filelist + [os.path.join(f"Area_{area_idx}", dataset) for dataset in os.listdir(folder)]
@@ -55,22 +167,6 @@ class S3DIS_Pillar():
 
     def size(self):
         return len(self.filelist)
-
-    def get_points(self):
-        return self.data[:,:3]
-
-    def get_labels(self):
-        return self.data[:, 6].astype(int)
-
-
-    def __len__(self):
-        if self.split == "training":
-            return self.cfg['training']['training_steps'] * self.cfg['training']['batch_size']
-        elif self.split == "validation":
-            return self.cfg['training']['validation_steps'] * self.cfg['training']['batch_size']
-        else: # test, requires to have computed the sliding window
-            return len(self.choices)
-
 
     def compute_sliding_window(self, index, step, npoints):
 
@@ -113,42 +209,27 @@ class S3DIS_Pillar():
                 self.choices.append(choice)
                 self.pts_ref.append(pt_ref)
 
+    def get_points(self):
+        return self.data[:,:3]
 
+    def get_labels(self):
+        return self.data[:, 6].astype(int)
+
+
+    def __len__(self):
+        return len(self.choices)
 
 
     @with_indices_computation_rotation
     def __getitem__(self, index):
 
-        if self.split in ["training", "validation"]:
+        choice = self.choices[index]
+        pts = self.data[choice]
 
-            index = random.randint(0, len(self.filelist)-1)
-            filename_data = os.path.join(self.dataset_dir, self.filelist[index], 'xyzrgb.npy')
-            filename_labels = os.path.join(self.dataset_dir, self.filelist[index], 'label.npy')
-            data = np.load(filename_data).astype(np.float32)
-            labels = np.load(filename_labels).astype(np.float32).flatten()
-            labels = np.expand_dims(labels, axis=1)
-            data = np.concatenate([data, labels], axis=1)
-
-            # apply transformations on data
-            if self.t_data is not None:
-                for t in self.t_data:
-                    data = t(data)
-
-            # get the features, labels and points
-            fts = data[:,3:6]
-            lbs = data[:, 6].astype(int)
-            pts = data[:, :3]
-
-            choice = 0 # not used at training or validation
-
-        else: # it is a test
-            choice = self.choices[index]
-            pts = self.data[choice]
-
-            # get the features, labels and points
-            fts = pts[:,3:6]
-            lbs = pts[:, 6].astype(int)
-            pts = pts[:, :3]
+        # get the features, labels and points
+        fts = pts[:,3:6]
+        lbs = pts[:, 6].astype(int)
+        pts = pts[:, :3]
 
         # apply transformations on points
         if self.t_points is not None:
@@ -176,11 +257,3 @@ class S3DIS_Pillar():
         }
 
         return return_dict
-
-
-    @staticmethod
-    def get_class_weights(return_torch_tensor=True):
-        # pre-calculate the number of points in each category
-        raise NotImplementedError
-
-
