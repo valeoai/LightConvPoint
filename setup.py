@@ -4,7 +4,11 @@ import sys
 
 print(sys.argv)
 
-if "--compile" in sys.argv:
+if "--nocompile" in sys.argv:
+    print("LIGHTCONVPOINT -- PYTHON MODULES")
+    ext_modules=[]
+    cmdclass={}
+else:
     print("LIGHTCONVPOINT -- COMPILING CPP MODULES")
     ext_modules=[
        cpp_extension.CppExtension(
@@ -23,10 +27,6 @@ if "--compile" in sys.argv:
     ]
     cmdclass={"build_ext": cpp_extension.BuildExtension}
     sys.argv.remove("--compile")
-else:
-    print("LIGHTCONVPOINT -- PYTHON MODULES")
-    ext_modules=[]
-    cmdclass={}
 
 setup(
     name="lightconvpoint",
