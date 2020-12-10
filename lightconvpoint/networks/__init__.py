@@ -1,4 +1,4 @@
 # Convolution classes
-from .kpconv import *
+from .fkaconv import *
 from .convpoint import *
 from .fusion import *

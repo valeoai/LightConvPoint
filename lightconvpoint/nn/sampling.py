@@ -45,5 +45,10 @@ def sampling_fps(points, ratio=1, return_support_points=False):
 def sampling_random(points, ratio=1, return_support_points=False):
     return sampling_base(nearest_neighbors.sampling_random, points, ratio, return_support_points)
 
-def sampling_apply_on_data(data, support_point_ids):
-    return batched_index_select(data, dim=1, index=support_point_ids)
+def sampling_apply_on_data(data, support_point_ids, dim=1):
+    if dim==1:
+        return batched_index_select(data, dim=dim, index=support_point_ids)
+    elif dim==2:
+        return batched_index_select(data.transpose(1,2), dim=1, index=support_point_ids).transpose(1,2)
+    else:
+        raise NotImplementedError

@@ -1,11 +1,12 @@
 import torch
 import torch.nn as nn
+from torch.nn.modules import activation
 import lightconvpoint.nn as lcp_nn
 from lightconvpoint.nn.conv_fkaconv import FKAConv as conv
 from lightconvpoint.nn.pool import max_pool
 from lightconvpoint.nn.sampling_knn import sampling_knn_quantized as sampling_knn
 from lightconvpoint.nn.sampling import sampling_quantized as sampling, sampling_apply_on_data
-
+from lightconvpoint.nn.knn import knn
 
 class ResidualBlock(nn.Module):
 
@@ -61,17 +62,31 @@ class FKAConv(nn.Module):
         self.cv0 = conv(in_channels, 64, 16)
         self.bn0 = nn.BatchNorm1d(64)
 
-        self.resnetb01 = ResidualBlock(64, 64, 16)
-        self.resnetb10 = ResidualBlock(64, 128, 16)
-        self.resnetb11 = ResidualBlock(128, 128, 16)
-        self.resnetb20 = ResidualBlock(128, 256, 16)
-        self.resnetb21 = ResidualBlock(256, 256, 16)
-        self.resnetb30 = ResidualBlock(256, 512, 16)
-        self.resnetb31 = ResidualBlock(512, 512, 16)
-        self.resnetb40 = ResidualBlock(512, 1024, 16)
-        self.resnetb41 = ResidualBlock(1024, 1024, 16)
+        hidden = 64
 
-        self.fcout = nn.Linear(1024, out_channels)
+        self.resnetb01 = ResidualBlock(hidden, hidden, 16)
+        self.resnetb10 = ResidualBlock(hidden, 2*hidden, 16)
+        self.resnetb11 = ResidualBlock(2*hidden, 2*hidden, 16)
+        self.resnetb20 = ResidualBlock(2*hidden, 4*hidden, 16)
+        self.resnetb21 = ResidualBlock(4*hidden, 4*hidden, 16)
+        self.resnetb30 = ResidualBlock(4*hidden, 8*hidden, 16)
+        self.resnetb31 = ResidualBlock(8*hidden, 8*hidden, 16)
+        self.resnetb40 = ResidualBlock(8*hidden, 16*hidden, 16)
+        self.resnetb41 = ResidualBlock(16*hidden, 16*hidden, 16)
+        
+        if self.segmentation:
+            self.cv3d = nn.Conv1d(24*hidden, 8 * hidden, 1)
+            self.bn3d = nn.BatchNorm1d(8 * hidden)
+            self.cv2d = nn.Conv1d(12 * hidden, 4 * hidden, 1)
+            self.bn2d = nn.BatchNorm1d(4 * hidden)
+            self.cv1d = nn.Conv1d(6 * hidden, 2 * hidden, 1)
+            self.bn1d = nn.BatchNorm1d(2 * hidden)
+            self.cv0d = nn.Conv1d(3 * hidden, hidden, 1)
+            self.bn0d = nn.BatchNorm1d(hidden)
+            self.fcout = nn.Conv1d(hidden, out_channels, 1)
+        else:
+            self.fcout = nn.Linear(1024, out_channels)
+
         self.dropout = nn.Dropout(0.5)
         self.activation = nn.ReLU()
 
@@ -95,7 +110,17 @@ class FKAConv(nn.Module):
 
         ids41, _ = sampling_knn(support4, 16, ratio=1)
 
-        return None, [ids0, ids10, ids11, ids20, ids21, ids30, ids31, ids40, ids41], [support1, support2, support3, support4]
+        indices = [ids0, ids10, ids11, ids20, ids21, ids30, ids31, ids40, ids41]
+        support_points = [support1, support2, support3, support4]
+
+        if self.segmentation:
+            ids3u = knn(support4, support3, 1)
+            ids2u = knn(support3, support2, 1)
+            ids1u = knn(support2, support1, 1)
+            ids0u = knn(support1, pos, 1)
+            indices = indices + [ids3u, ids2u, ids1u, ids0u]
+
+        return None, indices, support_points
 
 
     def forward_with_features(self, x, pos, support_points=None, indices=None):
@@ -103,24 +128,39 @@ class FKAConv(nn.Module):
         if (support_points is None) or (indices is None):
             _, indices, support_points = self.compute_indices(pos)
 
-        ids0, ids10, ids11, ids20, ids21, ids30, ids31, ids40, ids41 = indices
+        if self.segmentation:
+            ids0, ids10, ids11, ids20, ids21, ids30, ids31, ids40, ids41, ids3u, ids2u, ids1u, ids0u = indices
+        else:
+            ids0, ids10, ids11, ids20, ids21, ids30, ids31, ids40, ids41 = indices
         support1, support2, support3, support4 = support_points
 
-        x = self.activation(self.bn0(self.cv0(x, pos, pos, ids0)))
-        x = self.resnetb01(x, pos, pos, ids0)
-        x = self.resnetb10(x, pos, support1, ids10)
-        x = self.resnetb11(x, support1, support1, ids11)
-        x = self.resnetb20(x, support1, support2, ids20)
-        x = self.resnetb21(x, support2, support2, ids21)
-        x = self.resnetb30(x, support2, support3, ids30)
-        x = self.resnetb31(x, support3, support3, ids31)
-        x = self.resnetb40(x, support3, support4, ids40)
-        x = self.resnetb41(x, support4, support4, ids41)
-        x = x.mean(dim=2)
-        x = self.dropout(x)
-        x = self.fcout(x)
+        x0 = self.activation(self.bn0(self.cv0(x, pos, pos, ids0)))
+        x0 = self.resnetb01(x0, pos, pos, ids0)
+        x1 = self.resnetb10(x0, pos, support1, ids10)
+        x1 = self.resnetb11(x1, support1, support1, ids11)
+        x2 = self.resnetb20(x1, support1, support2, ids20)
+        x2 = self.resnetb21(x2, support2, support2, ids21)
+        x3 = self.resnetb30(x2, support2, support3, ids30)
+        x3 = self.resnetb31(x3, support3, support3, ids31)
+        x4 = self.resnetb40(x3, support3, support4, ids40)
+        x4 = self.resnetb41(x4, support4, support4, ids41)
 
-        return x
+        if self.segmentation:
+            xout = sampling_apply_on_data(x4, ids3u, dim=2)
+            xout = self.activation(self.bn3d(self.cv3d(torch.cat([xout, x3], dim=1))))
+            xout = sampling_apply_on_data(xout, ids2u, dim=2)
+            xout = self.activation(self.bn2d(self.cv2d(torch.cat([xout, x2], dim=1))))
+            xout = sampling_apply_on_data(xout, ids1u, dim=2)
+            xout = self.activation(self.bn1d(self.cv1d(torch.cat([xout, x1], dim=1))))
+            xout = sampling_apply_on_data(xout, ids0u, dim=2)
+            xout = self.activation(self.bn0d(self.cv0d(torch.cat([xout, x0], dim=1))))
+            xout = self.fcout(xout)
+        else:
+            xout = x4.mean(dim=2)
+            xout = self.dropout(xout)
+            xout = self.fcout(xout)
+
+        return xout
 
     def forward(self, x, pos, support_points=None, indices=None):
         if x is None:
