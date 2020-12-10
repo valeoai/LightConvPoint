@@ -8,25 +8,25 @@ if "--nocompile" in sys.argv:
     print("LIGHTCONVPOINT -- PYTHON MODULES")
     ext_modules=[]
     cmdclass={}
+    sys.argv.remove("--nocompile")
 else:
     print("LIGHTCONVPOINT -- COMPILING CPP MODULES")
     ext_modules=[
        cpp_extension.CppExtension(
            "lightconvpoint.knn_c_func",
            [
+               "lightconvpoint/src/functions_bind.cxx",
                "lightconvpoint/src/knn.cxx",
-               "lightconvpoint/src/knn_bind.cxx",
-               "lightconvpoint/src/knn_random.cxx",
-               "lightconvpoint/src/knn_farthest.cxx",
-               "lightconvpoint/src/knn_convpoint.cxx",
-               "lightconvpoint/src/knn_quantized.cxx",
+               "lightconvpoint/src/sampling_random.cxx",
+               "lightconvpoint/src/sampling_farthest.cxx",
+               "lightconvpoint/src/sampling_convpoint.cxx",
+               "lightconvpoint/src/sampling_quantized.cxx",
            ],
            extra_compile_args=["-fopenmp"],
            extra_link_args=["-fopenmp"],
        )
     ]
     cmdclass={"build_ext": cpp_extension.BuildExtension}
-    sys.argv.remove("--compile")
 
 setup(
     name="lightconvpoint",

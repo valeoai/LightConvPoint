@@ -78,8 +78,25 @@ class FKAConv(nn.Module):
         self.bn1 = nn.InstanceNorm2d(self.kernel_size, affine=True)
         self.bn2 = nn.InstanceNorm2d(self.kernel_size, affine=True)
 
-    def forward(self, input, points, support_points):
+    def batched_index_select(self, input, dim, index):
+        """Gather input with respect to the index tensor."""
+        index_shape = index.shape
+        views = [input.shape[0]] + [
+            1 if i != dim else -1 for i in range(1, len(input.shape))
+        ]
+        expanse = list(input.shape)
+        expanse[0] = -1
+        expanse[dim] = -1
+        index = index.view(views).expand(expanse)
+        return torch.gather(input, dim, index).view(
+            input.size(0), -1, index_shape[1], index_shape[2]
+        )
+
+    def forward(self, input, points, support_points, knn_indices):
         """Computes the features associated with the support points."""
+
+        points = self.batched_index_select(points, dim=2, index=knn_indices).contiguous()
+        input = self.batched_index_select(input, dim=2, index=knn_indices).contiguous()
 
         # center the neighborhoods (local coordinates)
         pts = points - support_points.unsqueeze(3)
@@ -125,4 +142,4 @@ class FKAConv(nn.Module):
         ).transpose(1, 2)
         features = self.cv(features).squeeze(3)
 
-        return features, support_points
+        return features

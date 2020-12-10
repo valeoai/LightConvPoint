@@ -1,6 +1,6 @@
 
 // KDTree
-#include "knn.h"
+#include "functions.h"
 #include "nanoflann.hpp"
 #include "KDTreeTableAdaptor.h"
 using namespace nanoflann;

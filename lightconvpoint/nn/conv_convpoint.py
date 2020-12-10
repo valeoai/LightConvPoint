@@ -84,13 +84,31 @@ class ConvPoint(nn.Module):
             proj_dim = self.kernel_size
         self.projector = nn.Sequential(*modules)
 
+    def batched_index_select(self, input, dim, index):
+        """Gather input with respect to the index tensor."""
+        index_shape = index.shape
+        views = [input.shape[0]] + [
+            1 if i != dim else -1 for i in range(1, len(input.shape))
+        ]
+        expanse = list(input.shape)
+        expanse[0] = -1
+        expanse[dim] = -1
+        index = index.view(views).expand(expanse)
+        return torch.gather(input, dim, index).view(
+            input.size(0), -1, index_shape[1], index_shape[2]
+        )
+
+
     def normalize_points(self, pts, radius=None):
         maxi = torch.sqrt((pts.detach() ** 2).sum(1).max(2)[0])
         maxi = maxi + (maxi == 0)
         return pts / maxi.view(maxi.size(0), 1, maxi.size(1), 1)
 
-    def forward(self, input, points, support_points):
+    def forward(self, input, points, support_points, indices):
         """Computes the features associated with the support points."""
+
+        points = self.batched_index_select(points, dim=2, index=indices).contiguous()
+        input = self.batched_index_select(input, dim=2, index=indices).contiguous()
 
         # center the neighborhoods (local coordinates)
         pts = points - support_points.unsqueeze(3)
@@ -108,4 +126,4 @@ class ConvPoint(nn.Module):
         features = torch.matmul(features, mat).transpose(1,2)
         features = self.cv(features).squeeze(3)
 
-        return features, support_points
+        return features

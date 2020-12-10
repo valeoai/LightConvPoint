@@ -1,253 +1,141 @@
 import torch
 import torch.nn as nn
 import lightconvpoint.nn as lcp_nn
-
-# This mdoels for classification and segmentation
-# are inspired from ConvPoint
-# https://github.com/aboulch/ConvPoint
+from lightconvpoint.nn.conv_convpoint import ConvPoint as conv
+from lightconvpoint.nn.sampling_knn import sampling_knn_convpoint as sampling_knn
 
 
-class ConvPointCls(nn.Module):
-    """ConvPoint classification network.
+class ConvPoint(nn.Module):
 
-    Network inspired from the KPConv paper and code (https://github.com/aboulch/ConvPoint)
-
-    # Arguments
-        in_channels: int.
-            The number of input channels.
-        out_channels: int.
-            The number of output  channels.
-        ConvNet: convolutional layer.
-            The convolutional class to be used in the network.
-        Search: search algorithm.
-            The search class to be used in the network.
-    """
-
-    def __init__(self, in_channels, out_channels, ConvNet, Search, **kwargs):
+    def __init__(self, in_channels, out_channels, segmentation=False):
         super().__init__()
 
-        # input 2048
-        self.cv1 = lcp_nn.Conv(
-            ConvNet(in_channels, 64, 16),
-            Search(K=16, npoints=1024),
-            activation=nn.ReLU(),
-            normalization=nn.BatchNorm1d(64),
-        )
-        self.cv2 = lcp_nn.Conv(
-            ConvNet(64, 128, 16),
-            Search(K=16, npoints=256),
-            activation=nn.ReLU(),
-            normalization=nn.BatchNorm1d(128),
-        )
-        self.cv3 = lcp_nn.Conv(
-            ConvNet(128, 256, 16),
-            Search(K=16, npoints=64),
-            activation=nn.ReLU(),
-            normalization=nn.BatchNorm1d(256),
-        )
-        self.cv4 = lcp_nn.Conv(
-            ConvNet(256, 256, 16),
-            Search(K=16, npoints=16),
-            activation=nn.ReLU(),
-            normalization=nn.BatchNorm1d(256),
-        )
-        self.cv5 = lcp_nn.Conv(
-            ConvNet(256, 512, 16),
-            Search(K=16, npoints=1),
-            activation=nn.ReLU(),
-            normalization=nn.BatchNorm1d(512),
-        )
+        self.segmentation = segmentation
 
-        # last layer
-        self.fcout = nn.Linear(512, out_channels)
+        if self.segmentation:
+            
+            self.cv0 = conv(in_channels, 64, 16, bias=False)
+            self.bn0 = nn.BatchNorm1d(64)      
+            self.cv1 = conv(64, 64, 16, bias=False)
+            self.bn1 = nn.BatchNorm1d(64)      
+            self.cv2 = conv(64, 64, 16, bias=False)
+            self.bn2 = nn.BatchNorm1d(64)      
+            self.cv3 = conv(64, 64, 16, bias=False)
+            self.bn3 = nn.BatchNorm1d(64)      
+            self.cv4 = conv(64, 128, 16, bias=False)
+            self.bn4 = nn.BatchNorm1d(128)      
+            self.cv5 = conv(128, 128, 16, bias=False)
+            self.bn5 = nn.BatchNorm1d(128)     
+            self.cv6 = conv(128, 128, 16, bias=False)
+            self.bn6 = nn.BatchNorm1d(128)     
+            self.cv5d = conv(128, 128, 16, bias=False)
+            self.bn5d = nn.BatchNorm1d(128)     
+            self.cv4d = conv(256, 128, 16, bias=False)
+            self.bn4d = nn.BatchNorm1d(128)     
+            self.cv3d = conv(256, 64, 16, bias=False)
+            self.bn3d = nn.BatchNorm1d(64)      
+            self.cv2d = conv(128, 64, 16, bias=False)
+            self.bn2d = nn.BatchNorm1d(64)
+            self.cv1d = conv(128, 64, 16, bias=False)
+            self.bn1d = nn.BatchNorm1d(64)
+            self.cv0d = conv(128, 64, 16, bias=False)
+            self.bn0d = nn.BatchNorm1d(64)
+            self.fcout = nn.Conv1d(128, out_channels, 1)
 
-        self.relu = nn.ReLU()
+        else:
+
+            self.cv1 = conv(in_channels, 64, 16, bias=False)
+            self.bn1 = nn.BatchNorm1d(64)            
+            self.cv2 = conv(64, 128, 16, bias=False)
+            self.bn2 = nn.BatchNorm1d(128)
+            self.cv3 = conv(128, 256, 16, bias=False)
+            self.bn3 = nn.BatchNorm1d(256)
+            self.cv4 = conv(256, 256, 16, bias=False)
+            self.bn4 = nn.BatchNorm1d(256)
+            self.cv5 = conv(256, 512, 16, bias=False)
+            self.bn5 = nn.BatchNorm1d(512)
+            self.fcout = nn.Linear(512, out_channels)
+
+        self.activation = nn.ReLU()
         self.dropout = nn.Dropout(0.5)
 
-    def forward(self, x, input_pts, support_points=None, indices=None):
 
-        if support_points is None:
-            support_points = [None for _ in range(5)]
-        if indices is None:
-            indices = [None for _ in range(5)]
-
-        x1, pts1, ids1 = self.cv1(x, input_pts, support_points[0], indices=indices[0])
-
-        x2, pts2, ids2 = self.cv2(x1, pts1, support_points[1], indices=indices[1])
-
-        x3, pts3, ids3 = self.cv3(x2, pts2, support_points[2], indices=indices[2])
-
-        x4, pts4, ids4 = self.cv4(x3, pts3, support_points[3], indices=indices[3])
-
-        x5, pts5, ids5 = self.cv5(x4, pts4, support_points[4], indices=indices[4])
-
-        if x1 is not None:
-            xout = x5.view(x5.size(0), -1)
-            xout = self.dropout(xout)
-            xout = self.fcout(xout)
-            return xout
+    def compute_indices(self, pos):
+        if self.segmentation:
+            ids0, support0 = sampling_knn(pos, 16, ratio=1)
+            ids1, support1 = sampling_knn(support0, 16, ratio=0.25)
+            ids2, support2 = sampling_knn(support1, 16, ratio=0.5)
+            ids3, support3 = sampling_knn(support2, 16, ratio=0.25)
+            ids4, support4 = sampling_knn(support3, 16, ratio=0.25)
+            ids5, support5 = sampling_knn(support4, 16, ratio=0.25)
+            ids6, support6 = sampling_knn(support5, 16, ratio=0.25)
+            ids5d, _ = sampling_knn(support6, 4, support_points=support5)
+            ids4d, _ = sampling_knn(support5, 4, support_points=support4)
+            ids3d, _ = sampling_knn(support4, 4, support_points=support3)
+            ids2d, _ = sampling_knn(support3, 8, support_points=support2)
+            ids1d, _ = sampling_knn(support2, 8, support_points=support1)
+            ids0d, _ = sampling_knn(support1, 8, support_points=support0)
+            return None, [ids0, ids1, ids2, ids3, ids4, ids5, ids6, ids5d, ids4d, ids3d, ids2d, ids1d, ids0d], [support0, support1, support2, support3, support4, support5, support6]
         else:
-            return None, [ids1, ids2, ids3, ids4, ids5], [pts1, pts2, pts3, pts4, pts5]
+            ids1, support1 = sampling_knn(pos, 16, ratio=1)
+            ids2, support2 = sampling_knn(support1, 16, ratio=0.25)
+            ids3, support3 = sampling_knn(support2, 16, ratio=0.25)
+            ids4, support4 = sampling_knn(support3, 16, ratio=0.25)
+            ids5, support5 = sampling_knn(support4, 16, ratio=0.25)
+            return None, [ids1, ids2, ids3, ids4, ids5], [support1, support2, support3, support4, support5]
 
 
-class ConvPointSeg(nn.Module):
-    """ConvPoint segmentation network.
+    def forward_with_features(self, x, pos, support_points=None, indices=None):
 
-    Network inspired from the KPConv paper and code (https://github.com/aboulch/ConvPoint)
+        if (support_points is None) or (indices is None):
+            _, indices, support_points = self.compute_indices(pos)
 
-    # Arguments
-        in_channels: int.
-            The number of input channels.
-        out_channels: int.
-            The number of output  channels.
-        ConvNet: convolutional layer.
-            The convolutional class to be used in the network.
-        Search: search algorithm.
-            The search class to be used in the network.
-    """
+        if self.segmentation:
 
-    def __init__(self, in_channels, out_channels, ConvNet, Search):
-        super().__init__()
+            ids0, ids1, ids2, ids3, ids4, ids5, ids6, ids5d, ids4d, ids3d, ids2d, ids1d, ids0d = indices
+            support0, support1, support2, support3, support4, support5, support6 = support_points
 
-        # input 8192 / 2048
-        self.cv0 = lcp_nn.Conv(ConvNet(in_channels, 64, 16), Search(K=16))  # no stride
-        self.cv1 = lcp_nn.Conv(
-            ConvNet(64, 64, 16),
-            Search(K=16, npoints=2048),
-            activation=nn.ReLU(),
-            normalization=nn.BatchNorm1d(64),
-        )
-        self.cv2 = lcp_nn.Conv(
-            ConvNet(64, 64, 16),
-            Search(K=16, npoints=1024),
-            activation=nn.ReLU(),
-            normalization=nn.BatchNorm1d(64),
-        )
-        self.cv3 = lcp_nn.Conv(
-            ConvNet(64, 64, 16),
-            Search(K=16, npoints=256),
-            activation=nn.ReLU(),
-            normalization=nn.BatchNorm1d(64),
-        )
-        self.cv4 = lcp_nn.Conv(
-            ConvNet(64, 128, 16),
-            Search(K=16, npoints=64),
-            activation=nn.ReLU(),
-            normalization=nn.BatchNorm1d(128),
-        )
-        self.cv5 = lcp_nn.Conv(
-            ConvNet(128, 128, 16),
-            Search(K=16, npoints=16),
-            activation=nn.ReLU(),
-            normalization=nn.BatchNorm1d(128),
-        )
-        self.cv6 = lcp_nn.Conv(
-            ConvNet(128, 128, 16),
-            Search(K=16, npoints=8),
-            activation=nn.ReLU(),
-            normalization=nn.BatchNorm1d(128),
-        )
-
-        self.cv5d = lcp_nn.Conv(
-            ConvNet(128, 128, 16),
-            Search(K=4),
-            activation=nn.ReLU(),
-            normalization=nn.BatchNorm1d(128),
-        )
-        self.cv4d = lcp_nn.Conv(
-            ConvNet(256, 128, 16),
-            Search(K=4),
-            activation=nn.ReLU(),
-            normalization=nn.BatchNorm1d(128),
-        )
-        self.cv3d = lcp_nn.Conv(
-            ConvNet(256, 64, 16),
-            Search(K=4),
-            activation=nn.ReLU(),
-            normalization=nn.BatchNorm1d(64),
-        )
-        self.cv2d = lcp_nn.Conv(
-            ConvNet(128, 64, 16),
-            Search(K=8),
-            activation=nn.ReLU(),
-            normalization=nn.BatchNorm1d(64),
-        )
-        self.cv1d = lcp_nn.Conv(
-            ConvNet(128, 64, 16),
-            Search(K=8),
-            activation=nn.ReLU(),
-            normalization=nn.BatchNorm1d(64),
-        )
-        self.cv0d = lcp_nn.Conv(
-            ConvNet(128, 64, 16),
-            Search(K=8),
-            activation=nn.ReLU(),
-            normalization=nn.BatchNorm1d(64),
-        )
-
-        self.fcout = nn.Conv1d(128, out_channels, 1)
-        self.drop = nn.Dropout(0.5)
-        self.relu = nn.ReLU(inplace=True)
-        self.features_out_size = 128
-
-    def forward(
-        self, x, input_pts, support_points=None, indices=None, return_features=False
-    ):
-
-        if support_points is None:
-            support_points = [None for _ in range(13)]
-        if indices is None:
-            indices = [None for _ in range(13)]
-
-        # ENCODER
-        x0, pts0, ids0 = self.cv0(x, input_pts, input_pts, indices=indices[0])
-        x1, pts1, ids1 = self.cv1(x0, pts0, support_points[0], indices=indices[1])
-        x2, pts2, ids2 = self.cv2(x1, pts1, support_points[1], indices=indices[2])
-        x3, pts3, ids3 = self.cv3(x2, pts2, support_points[2], indices=indices[3])
-        x4, pts4, ids4 = self.cv4(x3, pts3, support_points[3], indices=indices[4])
-        x5, pts5, ids5 = self.cv5(x4, pts4, support_points[4], indices=indices[5])
-        x6, pts6, ids6 = self.cv6(x5, pts5, support_points[5], indices=indices[6])
-
-        # DECODER
-        x5d, _, ids5d = self.cv5d(x6, pts6, pts5, indices=indices[7])
-        x5d = torch.cat([x5d, x5], dim=1) if x5d is not None else None
-        x4d, _, ids4d = self.cv4d(x5d, pts5, pts4, indices=indices[8])
-        x4d = torch.cat([x4d, x4], dim=1) if x4d is not None else None
-        x3d, _, ids3d = self.cv3d(x4d, pts4, pts3, indices=indices[9])
-        x3d = torch.cat([x3d, x3], dim=1) if x3d is not None else None
-        x2d, _, ids2d = self.cv2d(x3d, pts3, pts2, indices=indices[10])
-        x2d = torch.cat([x2d, x2], dim=1) if x2d is not None else None
-        x1d, _, ids1d = self.cv1d(x2d, pts2, pts1, indices=indices[11])
-        x1d = torch.cat([x1d, x1], dim=1) if x1d is not None else None
-        x0d, _, ids0d = self.cv0d(x1d, pts1, input_pts, indices=indices[12])
-
-        if x0d is not None:
-            x0d = torch.cat([x0d, x0], dim=1)
-            xout = self.drop(x0d)
-            xout = self.fcout(xout)
-
-            if return_features:
-                return xout, x0d
-            else:
-                return xout
+            x0 = self.activation(self.bn0(self.cv0(x, pos, support0, ids0)))
+            x1 = self.activation(self.bn1(self.cv1(x0, support0, support1, ids1)))
+            x2 = self.activation(self.bn2(self.cv2(x1, support1, support2, ids2)))
+            x3 = self.activation(self.bn3(self.cv3(x2, support2, support3, ids3)))
+            x4 = self.activation(self.bn4(self.cv4(x3, support3, support4, ids4)))
+            x5 = self.activation(self.bn5(self.cv5(x4, support4, support5, ids5)))
+            x6 = self.activation(self.bn6(self.cv6(x5, support5, support6, ids6)))
+            x = self.activation(self.bn5d(self.cv5d(x6, support6, support5, ids5d)))
+            x = torch.cat([x, x5], dim=1)
+            x = self.activation(self.bn4d(self.cv4d(x, support5, support4, ids4d)))
+            x = torch.cat([x, x4], dim=1)
+            x = self.activation(self.bn3d(self.cv3d(x, support4, support3, ids3d)))
+            x = torch.cat([x, x3], dim=1)
+            x = self.activation(self.bn2d(self.cv2d(x, support3, support2, ids2d)))
+            x = torch.cat([x, x2], dim=1)
+            x = self.activation(self.bn1d(self.cv1d(x, support2, support1, ids1d)))
+            x = torch.cat([x, x1], dim=1)
+            x = self.activation(self.bn0d(self.cv0d(x, support1, support0, ids0d)))
+            x = torch.cat([x, x0], dim=1)
+            x = self.dropout(x)
+            x = self.fcout(x)
 
         else:
-            return (
-                None,
-                [
-                    ids0,
-                    ids1,
-                    ids2,
-                    ids3,
-                    ids4,
-                    ids5,
-                    ids6,
-                    ids5d,
-                    ids4d,
-                    ids3d,
-                    ids2d,
-                    ids1d,
-                    ids0d,
-                ],
-                [pts1, pts2, pts3, pts4, pts5, pts6],
-            )
+
+            ids1, ids2, ids3, ids4, ids5 = indices
+            support1, support2, support3, support4, support5 = support_points
+
+            x = self.activation(self.bn1(self.cv1(x, pos, support1, ids1)))
+            x = self.activation(self.bn2(self.cv2(x, support1, support2, ids2)))
+            x = self.activation(self.bn3(self.cv3(x, support2, support3, ids3)))
+            x = self.activation(self.bn4(self.cv4(x, support3, support4, ids4)))
+            x = self.activation(self.bn5(self.cv5(x, support4, support5, ids5)))
+            x = x.mean(dim=2)
+            x = self.dropout(x)
+            x = self.fcout(x)
+
+        return x
+
+
+    def forward(self, x, pos, support_points=None, indices=None):
+        if x is None:
+            return self.compute_indices(pos)
+        else:
+            return self.forward_with_features(x, pos, support_points, indices)

@@ -9,10 +9,28 @@ if knn_c_func_spec is not None:
     knn_c_func = importlib.util.module_from_spec(knn_c_func_spec)
     knn_c_func_spec.loader.exec_module(knn_c_func)
 
-def random_pick_knn(points: torch.Tensor, nqueries: int, K: int):
+def sampling_random(points: torch.Tensor, nqueries: int):
 
     if knn_c_func_spec is not None:
-        return knn_c_func.random_pick_knn(points, nqueries, K)
+        return knn_c_func.sampling_random(points, nqueries)
+
+    bs, dim, nx = points.shape
+
+    indices_queries = []
+
+    for b_id in range(bs):
+
+        indices_queries_ = torch.randperm(nx)[:nqueries]
+        indices_queries.append(indices_queries_)
+
+    indices_queries = torch.stack(indices_queries, dim=0)
+
+    return indices_queries
+
+def sampling_knn_random(points: torch.Tensor, nqueries: int, K: int):
+
+    if knn_c_func_spec is not None:
+        return knn_c_func.sampling_knn_random(points, nqueries, K)
 
     bs, dim, nx = points.shape
 
