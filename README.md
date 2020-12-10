@@ -7,7 +7,7 @@ A framework to build convolutional network for point cloud processing.
 ## Paper: FKAConv, Feature-Kernel Alignment for Point Cloud Convolution
 
 LightConvPoint is the framework developped and used for FKAConv experiments.
-The paper is available at arxiv: [https://arxiv.org/abs/2004.04462](https://arxiv.org/abs/2004.04462)
+The paper is available at [openaccess.thecvf.com](https://openaccess.thecvf.com/content/ACCV2020/html/Boulch_FKAConv_Feature-Kernel_Alignment_for_Point_Cloud_Convolution_ACCV_2020_paper.html)
 
 If you use the FKAConv code or the LightConvPoint framework in your research, please consider citing:
 
@@ -19,7 +19,10 @@ If you use the FKAConv code or the LightConvPoint framework in your research, pl
   year={2020}
 }
 ```
+### Code for FKAConv
 
+The complete code and examples for FKAConv is available at [https://github.com/valeoai/FKAConv](https://github.com/valeoai/FKAConv).
+It relies on LightConvPoint v0.2.
 
 ## Ressources
 
