@@ -93,7 +93,7 @@ for epoch in range(30):
         pos, x, y, categories, net_ids, net_pts = get_data(data)
 
         optimizer.zero_grad()
-        outputs = net(pos, x, support_points=net_pts, indices=net_ids)
+        outputs = net(x, pos, support_points=net_pts, indices=net_ids)
         loss = F.cross_entropy(outputs, y.squeeze(1))
         loss.backward()
         optimizer.step()
@@ -138,7 +138,7 @@ for epoch in range(30):
             
             pos, x, y, categories, net_ids, net_pts = get_data(data)
 
-            outputs = net(pos, x, support_points=net_pts, indices=net_ids)
+            outputs = net(x, pos, support_points=net_pts, indices=net_ids)
             loss = F.cross_entropy(outputs, y.squeeze(1))
 
             # compute scores
