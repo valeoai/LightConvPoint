@@ -1,11 +1,14 @@
 import numpy as np
+from torch._C import Value
 from torchvision import transforms
 from PIL import Image
 import random
 
+from scipy.spatial import KDTree
+
 class UnitBallNormalize:
 
-    def __call__(self, points):  # from KPConv code
+    def __call__(self, points, **kwargs):  # from KPConv code
         pts = points[:,:3]
         pmin = np.min(pts, axis=0)
         pmax = np.max(pts, axis=0)
@@ -21,7 +24,7 @@ class NormalPerturbation:
     def __init__(self, sigma):
         self.sigma = sigma
 
-    def __call__(self, points):
+    def __call__(self, points, **kwargs):
         pts = points[:,:3]
         pts = pts + self.sigma * np.random.normal(size=pts.shape)
         points[:,:3] = pts
@@ -34,7 +37,7 @@ class PillarSelection:
         self.pillar_size = pillar_size
         self.infinite_pillar_dim = infinite_pillar_dim
 
-    def __call__(self, data, pillar_center=None):
+    def __call__(self, data, pillar_center=None, **kwargs):
 
         # data should have shape x,y,z,...
         if pillar_center is None:
@@ -54,12 +57,33 @@ class PillarSelection:
         # apply the mask
         return data[mask]
 
+class BallSelection:
+
+    def __init__(self, radius):
+        self.radius = radius
+
+    def __call__(self, data, ball_center=None, return_mask=False, **kwargs):
+
+        # data should have shape x,y,z,...
+        if ball_center is None:
+            ball_center = data[random.randint(0, data.shape[0]-1), :3]
+
+        distances = np.linalg.norm(data[:,:3] - ball_center[None,:], axis=1)
+        mask = distances < self.radius
+
+        # apply the mask
+        if return_mask:
+            return data[mask], mask
+        else:
+            return data[mask]
+
+
 class RandomSubSample:
 
     def __init__(self, number_of_points):
         self.n = number_of_points
 
-    def __call__(self, data, return_choice=False):
+    def __call__(self, data, return_choice=False, **kwargs):
         choice = np.random.choice(data.shape[0], self.n, replace=(data.shape[0] < self.n))
         if return_choice:
             return data[choice], choice
@@ -75,7 +99,7 @@ class FixedSubSample:
     def __init__(self, number_of_points):
         self.n = number_of_points
 
-    def __call__(self, data, return_choice=False):
+    def __call__(self, data, return_choice=False, **kwargs):
         if return_choice:
             return data[:self.n], np.arange(self.n)
         else:
@@ -87,7 +111,7 @@ class RandomRotation:
     def __init__(self, rotation_axis=2):
         self.rotation_axis=rotation_axis
 
-    def __call__(self, points):
+    def __call__(self, points, **kwargs):
 
         rotation_angle = np.random.uniform() * 2 * np.pi
         cosval = np.cos(rotation_angle)
@@ -105,6 +129,9 @@ class RandomRotation:
             rotation_matrix = np.array([[1, 0, 0],
                                         [0, cosval, sinval],
                                         [0, -sinval, cosval],])
+        else:
+            raise ValueError("Bad rotation axis")
+
         return points @ rotation_matrix
 
 
@@ -117,7 +144,7 @@ class ColorJittering:
             saturation=jitter_value)
 
 
-    def __call__(self, features):
+    def __call__(self, features, **kwargs):
 
         # features are considered to belong in [0,1]
         features = features * 255        
@@ -131,7 +158,7 @@ class ColorDropout:
     def __init__(self, dropout_value):
         self.dropout_value = dropout_value
     
-    def __call__(self, features):
+    def __call__(self, features, **kwargs):
 
         if np.random.rand() < self.dropout_value:
             return np.ones_like(features)
@@ -139,5 +166,5 @@ class ColorDropout:
 
 
 class NoColor:
-    def __call__(self, features):
+    def __call__(self, features, **kwargs):
         return np.ones_like(features)

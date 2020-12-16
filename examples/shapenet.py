@@ -148,8 +148,6 @@ for epoch in range(30):
                 outs[~mask] = -1e7
                 outputs[i] = outs
 
-
-
             output_np = np.argmax(outputs.cpu().detach().numpy(), axis=1)
             target_np = y.cpu().numpy()
             cm_ = confusion_matrix(
