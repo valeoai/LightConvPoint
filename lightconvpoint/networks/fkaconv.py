@@ -54,15 +54,14 @@ class ResidualBlock(nn.Module):
 
 class FKAConv(nn.Module):
 
-    def __init__(self, in_channels, out_channels, segmentation=False):
+    def __init__(self, in_channels, out_channels, segmentation=False, hidden=64):
         super().__init__()
 
         self.segmentation = segmentation
 
-        self.cv0 = conv(in_channels, 64, 16)
-        self.bn0 = nn.BatchNorm1d(64)
+        self.cv0 = conv(in_channels, hidden, 16)
+        self.bn0 = nn.BatchNorm1d(hidden)
 
-        hidden = 64
 
         self.resnetb01 = ResidualBlock(hidden, hidden, 16)
         self.resnetb10 = ResidualBlock(hidden, 2*hidden, 16)
